@@ -69,21 +69,274 @@ main {
   outline-offset: 2px;
 }
 
-/* ---- עיצוב מודרני למסך טלפון (בסגנון Material 3): פינות מעוגלות, צל רך, צ'יפים ---- */
+/*
+ * ---- עיצוב מודרני למסך טלפון, לפי ערכי Material 3 הרשמיים (androidx material3 tokens) ----
+ * פינות: 4 / 8 / 12 / 16 / 28 / מלא. כפתור 40px, צ'יפ 32px, שדה חיפוש 56px, יעד מגע 48px.
+ * רק מחלקות של Vuetify ושל Mealie עצמו; כל צבע ממשתני ערכת הנושא, כך שמצב כהה ו-RTL עובדים.
+ * רכיב שקבע לעצמו עיגול (rounded-*) או סגנון שטוח נשאר כמו שהוא.
+ */
+/* מוגדר על :root כי חלונות קופצים (תפריטים, דיאלוגים) מוצגים מחוץ ל-.v-application */
+:root {
+  --app-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.08), 0 1px 3px 1px rgba(0, 0, 0, 0.05);
+  --app-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.1), 0 2px 6px 2px rgba(0, 0, 0, 0.06);
+  --app-shadow-3: 0 4px 8px 3px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.12);
+  --app-tonal: rgba(var(--v-theme-on-surface), 0.06);
+}
+:root:has(.v-application.v-theme--dark) {
+  --app-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 3px 1px rgba(0, 0, 0, 0.3);
+  --app-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 6px 2px rgba(0, 0, 0, 0.32);
+  --app-shadow-3: 0 4px 8px 3px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --app-tonal: rgba(var(--v-theme-on-surface), 0.09);
+}
 
-/* כרטיסים: פינות מעוגלות וצל עדין. כרטיס שטוח או עם עיגול פינות משלו (למשל עם פס צבע בצד) נשאר כמו שהוא */
+/* ---- כרטיסים: פינה 12, צל רך (Elevated card) ---- */
 .v-main .v-card--variant-elevated:not(.v-card--flat):not([class*="rounded"]) {
-  border-radius: 16px !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 10px rgba(0, 0, 0, 0.07) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--app-shadow-1) !important;
 }
-.v-theme--dark .v-main .v-card--variant-elevated:not(.v-card--flat):not([class*="rounded"]) {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+.v-main .v-card--variant-elevated.v-card--link:not([class*="rounded"]):active {
+  box-shadow: none !important;
 }
-.v-main .v-card--variant-elevated:not(.v-card--flat):not([class*="rounded"]):active {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+.v-main .v-card--variant-outlined:not([class*="rounded"]),
+.v-main .v-card--variant-tonal:not([class*="rounded"]) {
+  border-radius: 12px !important;
 }
 
-/* חיפוש מתכונים: שדה מלא ומעוגל */
+/* ---- כפתורים: גובה 40, פינה מלאה, בלי אותיות גדולות ובלי צל במנוחה ---- */
+.v-main .v-btn:not(.v-btn--icon):not([class*="rounded"]),
+.v-overlay-container .v-btn:not(.v-btn--icon):not([class*="rounded"]) {
+  border-radius: 999px !important;
+}
+.v-main .v-btn,
+.v-overlay-container .v-btn {
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+  font-weight: 500;
+}
+.v-main .v-btn:not(.v-btn--icon):not(.v-btn--size-x-small):not(.v-btn--size-small):not(.v-btn--density-compact),
+.v-overlay-container .v-btn:not(.v-btn--icon):not(.v-btn--size-x-small):not(.v-btn--size-small):not(.v-btn--density-compact) {
+  min-height: 40px;
+  padding-inline: 20px;
+}
+.v-main .v-btn--variant-elevated:not(.v-btn--icon),
+.v-overlay-container .v-btn--variant-elevated:not(.v-btn--icon) {
+  box-shadow: none !important;
+}
+.v-main .v-btn--variant-elevated:not(.v-btn--icon):active {
+  box-shadow: var(--app-shadow-1) !important;
+}
+/* תווית ארוכה לא נחתכת: הכפתור לא חורג מהמסך, והטקסט עובר שורה */
+.v-main .v-btn:not(.v-btn--icon),
+.v-overlay-container .v-btn:not(.v-btn--icon) {
+  max-width: 100%;
+}
+.v-main .v-btn:not(.v-btn--icon):not(.v-btn--size-x-small) .v-btn__content,
+.v-overlay-container .v-btn:not(.v-btn--icon):not(.v-btn--size-x-small) .v-btn__content {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+  min-width: 0;
+}
+.v-main .v-btn:not(.v-btn--icon):not(.v-btn--size-x-small):not(.v-btn--size-small):not(.v-btn--density-compact),
+.v-overlay-container .v-btn:not(.v-btn--icon):not(.v-btn--size-x-small):not(.v-btn--size-small):not(.v-btn--density-compact) {
+  height: auto !important;
+  padding-block: 8px;
+}
+/* כפתור זעיר (למשל "תיעוד") עדיין צריך להיות לחיץ באצבע */
+.v-main .v-btn--size-x-small:not(.v-btn--icon) {
+  min-height: 28px;
+  padding-inline: 10px;
+}
+/* קבוצת מתגים (ימים/שבועות): גלולה אחת */
+.v-main .v-btn-group:not([class*="rounded"]),
+.v-main .v-btn-toggle:not([class*="rounded"]) {
+  border-radius: 999px !important;
+}
+.v-main .v-btn-group .v-btn {
+  border-radius: 0 !important;
+}
+/* כפתור אייקון קטן: אזור מגע של 48px בלי לשנות את הפריסה */
+.v-main .v-btn--icon.v-btn--density-compact::after,
+.v-main .v-btn--icon.v-btn--size-small::after,
+.v-main .v-btn--icon.v-btn--size-x-small::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+
+/* ---- שדות טקסט ---- */
+/* solo: בלי צל כבד; משטח טונלי */
+.v-main .v-field--variant-solo,
+.v-main .v-field--variant-solo-filled,
+.v-main .v-field--variant-solo-inverted,
+.v-overlay-container .v-field--variant-solo,
+.v-overlay-container .v-field--variant-solo-filled {
+  box-shadow: none !important;
+  background: var(--app-tonal) !important;
+}
+.v-main .v-text-field:not(.v-textarea) .v-field--variant-solo:not(.v-field--rounded),
+.v-main .v-text-field:not(.v-textarea) .v-field--variant-solo-filled:not(.v-field--rounded) {
+  border-radius: 12px;
+}
+.v-main .v-textarea .v-field--variant-solo,
+.v-main .v-textarea .v-field--variant-solo-filled {
+  border-radius: 16px;
+}
+/* filled: פינות עליונות 4, כמו Filled text field */
+.v-main .v-field--variant-filled {
+  border-radius: 4px 4px 0 0;
+}
+
+/* ---- צ'יפים: פינה 8 ---- */
+.v-main .v-chip:not([class*="rounded"]):not(.v-chip--pill) {
+  border-radius: 8px !important;
+}
+
+/* ---- התראות ופאנלים נפתחים ---- */
+.v-main .v-alert:not([class*="rounded"]) {
+  border-radius: 12px !important;
+}
+.v-main .v-expansion-panels:not([class*="rounded"]) .v-expansion-panel:first-child {
+  border-start-start-radius: 12px !important;
+  border-start-end-radius: 12px !important;
+}
+.v-main .v-expansion-panels:not([class*="rounded"]) .v-expansion-panel:last-child {
+  border-end-start-radius: 12px !important;
+  border-end-end-radius: 12px !important;
+}
+
+/* ---- טבלאות: גלילה לרוחב במקום שבירת כל תא לכמה שורות ---- */
+.v-main .v-table .v-table__wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.v-main .v-table .v-table__wrapper > table > thead > tr > th,
+.v-main .v-table .v-table__wrapper > table > tbody > tr > td {
+  white-space: nowrap;
+}
+.v-main .v-table .v-table__wrapper > table > thead > tr > th {
+  font-weight: 600 !important;
+}
+.v-main .v-data-table-footer {
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  padding-block: 8px;
+}
+
+/* ---- דיאלוגים (28), גיליונות תחתונים (28 למעלה) ותפריטים (8) ---- */
+/* דיאלוג במסך מלא (כך Mealie פותח דיאלוגים בטלפון) נשאר בלי פינות */
+.v-dialog:not(.v-dialog--fullscreen) > .v-overlay__content > .v-card:not([class*="rounded"]),
+.v-dialog:not(.v-dialog--fullscreen) > .v-overlay__content > .v-sheet:not([class*="rounded"]),
+.v-dialog:not(.v-dialog--fullscreen) > .v-overlay__content > form > .v-card:not([class*="rounded"]) {
+  border-radius: 28px !important;
+}
+@media (max-width: 599px) {
+  .v-dialog:not(.v-dialog--fullscreen):not(.v-bottom-sheet) > .v-overlay__content {
+    max-width: calc(100% - 32px) !important;
+    margin-inline: 16px !important;
+  }
+}
+.v-bottom-sheet > .v-overlay__content > .v-card,
+.v-bottom-sheet > .v-overlay__content > .v-sheet {
+  border-radius: 28px 28px 0 0 !important;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.v-menu > .v-overlay__content > .v-list,
+.v-menu > .v-overlay__content > .v-card,
+.v-menu > .v-overlay__content > .v-sheet {
+  border-radius: 8px !important;
+  box-shadow: var(--app-shadow-2) !important;
+}
+.v-menu .v-list-item {
+  min-height: 48px;
+}
+.v-snackbar__wrapper {
+  border-radius: 8px !important;
+}
+
+/* ---- טפסים צפופים בטלפון: תיבות סימון ומתגים בעמודה אחת (למשל הרשאות משתמש) ---- */
+@media (max-width: 599px) {
+  .v-main .v-row > [class*="v-col-"]:has(> .v-checkbox),
+  .v-main .v-row > [class*="v-col-"]:has(> .v-switch) {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* ---- שום דבר לא חורג מרוחב המסך ---- */
+/* כרטיס ברוחב קבוע (כניסה, שכחתי סיסמה, סטטיסטיקות) מצטמצם לרוחב המסך */
+.v-application__wrap .v-card,
+.v-application__wrap .v-alert {
+  max-width: 100%;
+}
+.v-application__wrap .v-row > [class*="v-col"],
+.v-application__wrap .v-card > *,
+.v-application__wrap .v-card-text > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.v-application__wrap .v-card .d-flex > * {
+  min-width: 0;
+}
+/* כותרת כרטיס ארוכה עוברת שורה במקום לחרוג מהכרטיס */
+.v-application__wrap .v-card-title,
+.v-application__wrap .v-card-subtitle {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* עוטף כפתור ברוחב קבוע (למשל בדף "שכחתי סיסמה") */
+.v-application__wrap .max-button {
+  max-width: 100%;
+}
+/* סרגל כלים בתוך דף (יצירה / הזמנה / פעולות): הכפתורים עוברים שורה במקום להיחתך */
+.v-main .v-toolbar:not(.fixed-bar):not(.v-app-bar) {
+  height: auto !important;
+}
+.v-main .v-toolbar:not(.fixed-bar):not(.v-app-bar) > .v-toolbar__content {
+  flex-wrap: wrap;
+  height: auto !important;
+  min-height: 48px;
+  row-gap: 8px;
+  padding-block: 8px;
+}
+/* כרטיס מתכון צר (לצד תמונה): שורת מועדף/דירוג/תפריט עוברת שורה ולא נדחקת מחוץ לכרטיס */
+.v-main .v-card .v-list-item__content > .v-card-actions {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+/* שורת פעולות בכרטיס (שדה + כפתור "יצירה" וכו'): עוברת שורה במסך צר */
+.v-application__wrap .v-card-actions {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+/* לוח ארוחות: Mealie קובע לעמודה רוחב מינימלי 340px, יותר מרוחב טלפון קטן */
+@media (max-width: 399px) {
+  .v-main .col-borders {
+    min-width: 0 !important;
+  }
+}
+
+/* אשף שלבים (הגדרה ראשונית): כל השלבים נכנסים ברוחב המסך */
+.v-application__wrap .v-stepper-header {
+  flex-wrap: nowrap;
+  justify-content: space-around;
+}
+.v-application__wrap .v-stepper-header .v-stepper-item {
+  flex: 0 0 auto;
+  padding-inline: 2px;
+}
+.v-application__wrap .v-stepper-header .v-stepper-item__avatar {
+  flex: none;
+  margin-inline: 0 !important;
+}
+.v-application__wrap .v-stepper-header > .v-divider {
+  flex: 1 1 0;
+  min-width: 4px;
+  margin-inline: 2px;
+}
+
+/* ---- חיפוש מתכונים: Search bar בגובה 56 ובפינה מלאה ---- */
 .search-box {
   width: 100% !important;
   max-width: 950px;
@@ -93,7 +346,8 @@ main {
 }
 .search-box .v-field {
   border-radius: 28px;
-  background: rgba(var(--v-theme-on-surface), 0.06);
+  min-height: 56px;
+  background: var(--app-tonal);
 }
 .search-box .v-field__outline {
   --v-field-border-opacity: 0;
@@ -102,12 +356,12 @@ main {
   --v-field-border-opacity: 1;
 }
 
-/* מסננים ומיון: שורה אחת שנגללת לרוחב, כצ'יפים טונליים */
+/* מסננים ומיון: שורה אחת שנגללת לרוחב, כ-Filter chips (גובה 32, פינה 8) */
 .search-row {
   flex-wrap: nowrap !important;
   gap: 8px !important;
   margin: 12px -8px 0 !important;
-  padding: 2px 8px 6px;
+  padding: 8px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -115,18 +369,22 @@ main {
 .search-row::-webkit-scrollbar {
   display: none;
 }
-.search-row .v-btn {
+.v-main .search-row .v-btn.v-btn.v-btn {
   flex: none;
-  height: 36px !important;
+  height: 32px !important;
+  min-height: 32px !important;
   min-width: 40px !important;
-  padding: 0 14px !important;
-  border-radius: 999px !important;
+  padding: 0 12px !important;
+  border-radius: 8px !important;
   box-shadow: none !important;
-  text-transform: none;
-  letter-spacing: normal;
-  font-weight: 500;
   color: rgb(var(--v-theme-on-surface)) !important;
-  background: rgba(var(--v-theme-primary), 0.12) !important;
+  background: transparent !important;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
+}
+.search-row .v-btn::after {
+  content: "";
+  position: absolute;
+  inset: -8px 0;
 }
 .search-row .v-btn .v-icon {
   color: rgb(var(--v-theme-primary));
@@ -150,15 +408,15 @@ main {
   gap: 2px;
   padding: 4px;
   border-radius: 999px;
-  background: rgba(var(--v-theme-surface), 0.82);
+  background: rgba(var(--v-theme-surface), 0.86);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 4px 14px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--app-shadow-3);
 }
 .fixed-bar .custom-btn-group:not(.gapped) .v-btn {
   margin: 0 !important;
-  width: 40px !important;
-  height: 40px !important;
+  width: 44px !important;
+  height: 44px !important;
   background: transparent !important;
   box-shadow: none !important;
   color: rgb(var(--v-theme-primary)) !important;
@@ -170,7 +428,10 @@ main {
 
 /* מנות וכמויות: צ'יפ טונלי במקום כרטיס כהה */
 .v-main .v-card.bg-secondary-darken-1 {
-  border-radius: 999px !important;
+  border-radius: 8px !important;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
   padding: 4px 12px !important;
   box-shadow: none !important;
   background: rgba(var(--v-theme-secondary), 0.12) !important;
@@ -181,5 +442,14 @@ main {
   color: rgb(var(--v-theme-secondary));
 }
 .v-theme--dark .v-main .v-card.bg-secondary-darken-1 {
-  background: rgba(var(--v-theme-secondary), 0.28) !important;
+  background: rgba(var(--v-theme-secondary), 0.3) !important;
+}
+
+/* תנועה מופחתת: בלי אנימציות למי שביקש זאת בהגדרות הנגישות */
+@media (prefers-reduced-motion: reduce) {
+  .v-main *,
+  .v-overlay-container * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

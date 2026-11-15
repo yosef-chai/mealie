@@ -70,8 +70,8 @@ test("router, selectors and styles are available", async ({ page }) => {
   const row = page.locator(".search-row").first();
   await expect(row).toHaveCSS("flex-wrap", "nowrap");
   expect(await row.locator(".v-btn").count()).toBeGreaterThanOrEqual(2);
-  await expect(row.locator(".v-btn").first()).toHaveCSS("border-radius", "999px");
-  await expect(page.locator(".v-main .v-card--variant-elevated").first()).toHaveCSS("border-top-left-radius", "16px");
+  await expect(row.locator(".v-btn").first()).toHaveCSS("border-radius", "8px");
+  await expect(page.locator(".v-main .v-card--variant-elevated").first()).toHaveCSS("border-top-left-radius", "12px");
 });
 
 test("native tab navigation uses the router without reloading", async ({ page }) => {
