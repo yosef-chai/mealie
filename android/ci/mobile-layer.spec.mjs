@@ -71,7 +71,6 @@ test("router, selectors and styles are available", async ({ page }) => {
   await expect(row).toHaveCSS("flex-wrap", "nowrap");
   expect(await row.locator(".v-btn").count()).toBeGreaterThanOrEqual(2);
   await expect(row.locator(".v-btn").first()).toHaveCSS("border-radius", "8px");
-  await expect(page.locator(".v-main .v-card--variant-elevated").first()).toHaveCSS("border-top-left-radius", "12px");
 });
 
 test("native tab navigation uses the router without reloading", async ({ page }) => {
@@ -142,6 +141,8 @@ test("cooking times in recipe steps become timer buttons", async ({ page, reques
   await expect(chips.first()).toHaveText("20-25 דקות");
   await expect(page.locator(".recipe-step-title:visible").first()).toHaveCSS("font-weight", "600");
   await expect(page.locator(".fixed-bar .custom-btn-group").first()).toHaveCSS("border-radius", "999px");
+  // כרטיסי השלבים: שרת חדש ב-CI ריק ממתכונים, ולכן בודקים כרטיס כאן ולא ברשימת המתכונים
+  await expect(page.locator(".v-main .v-card--variant-elevated:visible").first()).toHaveCSS("border-top-left-radius", "12px");
   fs.mkdirSync(shots, { recursive: true });
   await page.screenshot({ path: path.join(shots, "timers.png"), fullPage: true });
 
