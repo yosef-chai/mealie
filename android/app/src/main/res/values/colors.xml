@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- הצבע הראשי של Mealie (THEME_LIGHT_PRIMARY כברירת מחדל). -->
+    <color name="mealie_brand">#E58325</color>
+    <color name="splash_background">#FFFFFF</color>
+</resources>

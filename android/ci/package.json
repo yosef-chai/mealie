@@ -1,0 +1,9 @@
+{
+  "name": "mealie-android-ui-check",
+  "private": true,
+  "type": "module",
+  "description": "בדיקת שכבת ההתאמה למובייל מול שרת Mealie אמיתי, לפני כל שחרור APK",
+  "devDependencies": {
+    "@playwright/test": "1.65.1"
+  }
+}

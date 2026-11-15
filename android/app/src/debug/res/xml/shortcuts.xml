@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- עותק ל-debug: אותם קיצורים, עם מזהה החבילה של debug. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="shopping"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_shopping"
+        android:shortcutShortLabel="@string/mealie_shopping_lists">
+        <intent
+            android:action="io.github.yosefchai.mealie.action.OPEN"
+            android:data="mealie-shortcut:shopping"
+            android:targetClass="io.github.yosefchai.mealie.MainActivity"
+            android:targetPackage="io.github.yosefchai.mealie.debug" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="mealplan"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_mealplan"
+        android:shortcutShortLabel="@string/mealie_meal_planner">
+        <intent
+            android:action="io.github.yosefchai.mealie.action.OPEN"
+            android:data="mealie-shortcut:mealplan"
+            android:targetClass="io.github.yosefchai.mealie.MainActivity"
+            android:targetPackage="io.github.yosefchai.mealie.debug" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="import"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_import"
+        android:shortcutShortLabel="@string/shortcut_import_recipe">
+        <intent
+            android:action="io.github.yosefchai.mealie.action.OPEN"
+            android:data="mealie-shortcut:import"
+            android:targetClass="io.github.yosefchai.mealie.MainActivity"
+            android:targetPackage="io.github.yosefchai.mealie.debug" />
+    </shortcut>
+</shortcuts>

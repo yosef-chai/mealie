@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  כתובת ה-LAN של המשתמש לא ידועה בזמן הבנייה, וה-XML לא תומך בטווחי IP.
+  לכן http מותר כאן ברמת הבסיס, והאכיפה (רק כתובות פרטיות) נעשית בקוד ב-HostPolicy,
+  גם ב-OkHttp וגם ב-WebView.
+  תעודות משתמש מותרות כי שרתים ביתיים רבים משתמשים ב-CA פרטי שהותקן במכשיר.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
