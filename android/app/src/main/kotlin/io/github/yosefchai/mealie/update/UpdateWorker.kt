@@ -8,6 +8,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import io.github.yosefchai.mealie.BuildConfig
 import io.github.yosefchai.mealie.core.AppGraph
 import io.github.yosefchai.mealie.core.Notifications
 import io.github.yosefchai.mealie.core.UpdateMode
@@ -44,6 +45,10 @@ class UpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         private const val NAME = "update-check"
 
         fun schedule(context: Context) {
+            if (!BuildConfig.SELF_UPDATE) {
+                WorkManager.getInstance(context).cancelUniqueWork(NAME)
+                return
+            }
             val request = PeriodicWorkRequestBuilder<UpdateWorker>(12, TimeUnit.HOURS)
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .build()

@@ -68,3 +68,118 @@ main {
   outline: 2px solid rgb(var(--v-theme-primary));
   outline-offset: 2px;
 }
+
+/* ---- עיצוב מודרני למסך טלפון (בסגנון Material 3): פינות מעוגלות, צל רך, צ'יפים ---- */
+
+/* כרטיסים: פינות מעוגלות וצל עדין. כרטיס שטוח או עם עיגול פינות משלו (למשל עם פס צבע בצד) נשאר כמו שהוא */
+.v-main .v-card--variant-elevated:not(.v-card--flat):not([class*="rounded"]) {
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 2px 10px rgba(0, 0, 0, 0.07) !important;
+}
+.v-theme--dark .v-main .v-card--variant-elevated:not(.v-card--flat):not([class*="rounded"]) {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3) !important;
+}
+.v-main .v-card--variant-elevated:not(.v-card--flat):not([class*="rounded"]):active {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* חיפוש מתכונים: שדה מלא ומעוגל */
+.search-box {
+  width: 100% !important;
+  max-width: 950px;
+}
+.search-container {
+  padding-bottom: 8px !important;
+}
+.search-box .v-field {
+  border-radius: 28px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+}
+.search-box .v-field__outline {
+  --v-field-border-opacity: 0;
+}
+.search-box .v-field--focused .v-field__outline {
+  --v-field-border-opacity: 1;
+}
+
+/* מסננים ומיון: שורה אחת שנגללת לרוחב, כצ'יפים טונליים */
+.search-row {
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  margin: 12px -8px 0 !important;
+  padding: 2px 8px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.search-row::-webkit-scrollbar {
+  display: none;
+}
+.search-row .v-btn {
+  flex: none;
+  height: 36px !important;
+  min-width: 40px !important;
+  padding: 0 14px !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  background: rgba(var(--v-theme-primary), 0.12) !important;
+}
+.search-row .v-btn .v-icon {
+  color: rgb(var(--v-theme-primary));
+}
+
+/* כותרת שלב: תווית קטנה בצבע הראשי, והטקסט של השלב הוא העיקר */
+.recipe-step-title {
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  color: rgb(var(--v-theme-primary));
+}
+
+/* פעולות המתכון (מועדף, ציר זמן, עריכה, תפריט): קבוצה צפה אחת, שקופה למחצה, במקום עיגולים כחולים */
+.fixed-bar,
+.fixed-bar .v-toolbar__content {
+  overflow: visible !important;
+}
+.fixed-bar .custom-btn-group:not(.gapped) {
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(var(--v-theme-surface), 0.82);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+.fixed-bar .custom-btn-group:not(.gapped) .v-btn {
+  margin: 0 !important;
+  width: 40px !important;
+  height: 40px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+.fixed-bar .custom-btn-group:not(.gapped) .v-btn .v-icon {
+  color: rgb(var(--v-theme-primary)) !important;
+  font-size: 22px !important;
+}
+
+/* מנות וכמויות: צ'יפ טונלי במקום כרטיס כהה */
+.v-main .v-card.bg-secondary-darken-1 {
+  border-radius: 999px !important;
+  padding: 4px 12px !important;
+  box-shadow: none !important;
+  background: rgba(var(--v-theme-secondary), 0.12) !important;
+  color: rgb(var(--v-theme-on-surface)) !important;
+  font-weight: 500;
+}
+.v-main .v-card.bg-secondary-darken-1 .v-icon {
+  color: rgb(var(--v-theme-secondary));
+}
+.v-theme--dark .v-main .v-card.bg-secondary-darken-1 {
+  background: rgba(var(--v-theme-secondary), 0.28) !important;
+}

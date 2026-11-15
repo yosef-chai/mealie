@@ -44,6 +44,7 @@ class UpdateChecker(
     private val http = client
 
     suspend fun check(): CheckResult = withContext(Dispatchers.IO) {
+        if (!BuildConfig.SELF_UPDATE) return@withContext CheckResult.UpToDate
         val tag = try {
             latestTagFromRedirect() ?: latestTagFromApi()
         } catch (e: IOException) {

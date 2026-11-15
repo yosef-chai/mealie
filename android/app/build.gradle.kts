@@ -104,6 +104,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // עדכון עצמי רק בבנייה שחתומה במפתח השחרור; אחרת ההתקנה נכשלת על חתימה שונה
+            buildConfigField("boolean", "SELF_UPDATE", releaseKeystore.isPresent.toString())
             signingConfig = when {
                 releaseKeystore.isPresent -> signingConfigs.getByName("release")
                 requireSigning.get() -> error("MEALIE_REQUIRE_SIGNING=true but MEALIE_KEYSTORE_FILE is not set")
@@ -114,6 +116,8 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            // מזהה חבילה וחתימה שונים מגרסת השחרור, ולכן אין למשוך ממנה עדכונים
+            buildConfigField("boolean", "SELF_UPDATE", "false")
         }
     }
 
