@@ -37,6 +37,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,6 +46,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,16 +61,17 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import io.github.yosefchai.mealie.MainActivity
 import io.github.yosefchai.mealie.R
 import io.github.yosefchai.mealie.net.HostPolicy
 import io.github.yosefchai.mealie.net.ProbeResult
 import io.github.yosefchai.mealie.net.ServerUrl
 import io.github.yosefchai.mealie.ui.AppViewModel
+import io.github.yosefchai.mealie.ui.QrScanner
 import io.github.yosefchai.mealie.ui.components.CertificateDialog
 import io.github.yosefchai.mealie.ui.components.ProbeRow
 import io.github.yosefchai.mealie.ui.theme.MealieOrange
+import kotlinx.coroutines.launch
 
 /**
  * חיבור לשרת: כתובת מרחוק ו/או כתובת ברשת הביתית, בדיקה של שתיהן ושמירה.
@@ -88,9 +93,27 @@ fun OnboardingScreen(vm: AppViewModel, activity: MainActivity, firstRun: Boolean
     val anyOk = listOfNotNull(test.internal, test.external).any { it is ProbeResult.Ok || it is ProbeResult.AuthGate }
     val publicCleartext = externalUrl?.let { !it.isHttps && !HostPolicy.isCleartextAllowed(it.host) } == true
 
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val msgNoServices = stringResource(R.string.scan_no_play_services)
+    val msgPreparing = stringResource(R.string.scan_preparing)
+    val msgFailed = stringResource(R.string.scan_failed)
+
     fun scan(into: (String) -> Unit) {
-        GmsBarcodeScanning.getClient(context).startScan()
-            .addOnSuccessListener { code -> code.rawValue?.let { into(it); vm.resetTest() } }
+        QrScanner.scan(context) { outcome ->
+            val message = when (outcome) {
+                is QrScanner.Outcome.Scanned -> {
+                    into(outcome.value)
+                    vm.resetTest()
+                    null
+                }
+                QrScanner.Outcome.Cancelled -> null
+                QrScanner.Outcome.NoPlayServices -> msgNoServices
+                QrScanner.Outcome.Preparing -> msgPreparing
+                QrScanner.Outcome.Failed -> msgFailed
+            }
+            if (message != null) scope.launch { snackbar.currentSnackbarData?.dismiss(); snackbar.showSnackbar(message) }
+        }
     }
 
     Box(
@@ -222,6 +245,13 @@ fun OnboardingScreen(vm: AppViewModel, activity: MainActivity, firstRun: Boolean
             )
             Spacer(Modifier.height(24.dp).navigationBarsPadding())
         }
+        SnackbarHost(
+            snackbar,
+            Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .imePadding(),
+        )
     }
 
     review?.split('|')?.takeIf { it.size == 3 }?.let { (hostPort, fp, canPin) ->
