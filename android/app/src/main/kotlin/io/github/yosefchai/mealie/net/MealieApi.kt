@@ -15,21 +15,9 @@ val MealieJson = Json {
 data class AboutInfo(
     val version: String = "",
     val production: Boolean = true,
-    val allowSignup: Boolean = false,
-    val allowPasswordLogin: Boolean = true,
-    val defaultGroupSlug: String? = null,
     val enableOidc: Boolean = false,
-    val oidcRedirect: Boolean = false,
     val oidcProviderName: String = "",
     val tokenTime: Int = 48,
-    val brandingName: String? = null,
-)
-
-/** GET /api/app/about/theme. */
-@Serializable
-data class AboutTheme(
-    val lightPrimary: String? = null,
-    val darkPrimary: String? = null,
 )
 
 /** GET /api/auth/oauth/native/config (snake_case, BaseModel רגיל). */
@@ -53,11 +41,4 @@ data class NativeTokenRequest(
 data class MealieToken(
     @SerialName("access_token") val accessToken: String,
     @SerialName("expires_in") val expiresIn: Long = 0,
-)
-
-/** GET /api/users/self – רק השדות שהאפליקציה צריכה. */
-@Serializable
-data class SelfUser(
-    val groupSlug: String? = null,
-    val fullName: String? = null,
 )

@@ -194,8 +194,6 @@
     return { value: n.v, len: 1 };
   }
 
-  function isWord(t, table) { return t && (t.kind === "word" || t.kind === "sep") && lookup(t.word, table) !== null; }
-
   // ---- חלק אחד: "20 דקות", "חצי שעה", "שעתיים", "שעה וחצי", "an hour" ----
   // מחזיר {seconds, unit, next, end} או null.
   function part(toks, i, allowBare) {

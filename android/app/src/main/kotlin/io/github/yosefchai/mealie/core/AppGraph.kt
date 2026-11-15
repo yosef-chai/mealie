@@ -1,10 +1,12 @@
 package io.github.yosefchai.mealie.core
 
+import android.annotation.SuppressLint
 import android.content.Context
 import io.github.yosefchai.mealie.net.NetworkMonitor
 import io.github.yosefchai.mealie.net.ServerProbe
 
-/** תלויות משותפות לכל האפליקציה (מספיק קטן כדי לוותר על ספריית DI). */
+/** תלויות משותפות לכל האפליקציה (מספיק קטן כדי לוותר על ספריית DI). מחזיק רק applicationContext, ולכן אין דליפה. */
+@SuppressLint("StaticFieldLeak")
 object AppGraph {
     lateinit var settings: SettingsRepository
         private set

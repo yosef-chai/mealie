@@ -101,13 +101,4 @@ class SettingsRepository(private val context: Context) {
             CertPins.pins = next
         }
     }
-
-    suspend fun unpin(hostPort: String) {
-        context.pinStore.edit { prefs ->
-            val now = prefs[pinsKey]?.let { MealieJson.decodeFromString<Map<String, String>>(it) } ?: emptyMap()
-            val next = now - hostPort
-            prefs[pinsKey] = MealieJson.encodeToString(next)
-            CertPins.pins = next
-        }
-    }
 }

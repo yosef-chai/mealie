@@ -1,7 +1,7 @@
 package io.github.yosefchai.mealie.ui.screens
 
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import android.os.Build
 import android.provider.Settings
 import androidx.appcompat.app.AppCompatDelegate
@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.os.LocaleListCompat
@@ -159,7 +160,7 @@ fun SettingsScreen(vm: AppViewModel, activity: MainActivity) {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 // רשימת השפות של המערכת לאפליקציה (נוצרת מ-generateLocaleConfig).
                                 context.startActivity(
-                                    Intent(Settings.ACTION_APP_LOCALE_SETTINGS, Uri.parse("package:${context.packageName}")),
+                                    Intent(Settings.ACTION_APP_LOCALE_SETTINGS, "package:${context.packageName}".toUri()),
                                 )
                             } else {
                                 languages = true
@@ -216,7 +217,7 @@ fun SettingsScreen(vm: AppViewModel, activity: MainActivity) {
                         Icons.AutoMirrored.Rounded.OpenInNew,
                         stringResource(R.string.about_source),
                         "github.com/${BuildConfig.UPDATE_REPO}",
-                        onClick = { activity.openExternal(Uri.parse("https://github.com/${BuildConfig.UPDATE_REPO}")) },
+                        onClick = { activity.openExternal("https://github.com/${BuildConfig.UPDATE_REPO}".toUri()) },
                     )
                 }
             }
@@ -249,11 +250,11 @@ private fun currentLanguageName(): String {
 /** Android 12 ומטה: בורר שפה בתוך האפליקציה (ב-13 ומעלה משתמשים במסך המערכת). */
 @Composable
 private fun LanguageDialog(onDismiss: () -> Unit) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val current = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     // הרשימה נוצרת בזמן הבנייה מאותן שפות של Mealie (GenerateStringsTask).
-    val supported = remember {
-        context.resources.getStringArray(R.array.supported_locales)
+    val supported = remember(resources) {
+        resources.getStringArray(R.array.supported_locales)
             .map { Locale.forLanguageTag(it) }
             .sortedBy { it.getDisplayName(it).lowercase() }
     }

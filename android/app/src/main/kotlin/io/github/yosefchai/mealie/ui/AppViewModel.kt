@@ -297,12 +297,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         sessions.setForAll(ready.server.all, clean, 365L * 24 * 3600)
     }
 
-    fun signOut() {
-        val ready = _connection.value as? Connection.Ready ?: return
-        sessions.clearAll(ready.server.all)
-        revokeApiToken(ready.server)
-    }
-
     /**
      * יציאה מהחשבון: גם טוקן ה-API של הווידג'טים מבוטל בשרת ונמחק מהמכשיר,
      * והווידג'טים עוברים למצב "התחברו". נדרשת קריאה עם הטוקן לפני שהוא נמחק.

@@ -1,6 +1,7 @@
 package io.github.yosefchai.mealie.auth
 
 import android.net.Uri
+import androidx.core.net.toUri
 import io.github.yosefchai.mealie.net.Http
 import io.github.yosefchai.mealie.net.MealieJson
 import io.github.yosefchai.mealie.net.MealieToken
@@ -43,7 +44,7 @@ class NativeOidc(private val client: OkHttpClient = Http.client) {
     }
 
     fun authorizationUri(config: NativeOidcConfig, pkce: Pkce): Uri =
-        Uri.parse(config.authorizationEndpoint).buildUpon()
+        config.authorizationEndpoint.toUri().buildUpon()
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("client_id", config.clientId)
             .appendQueryParameter("redirect_uri", REDIRECT_URI)
