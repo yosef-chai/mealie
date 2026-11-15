@@ -68,7 +68,7 @@ data class WebError(val code: Int, val description: String)
 
 data class UntrustedCert(val hostPort: String, val fingerprint: String, val canPin: Boolean)
 
-data class InjectOptions(val themeValue: String?, val raw: Boolean)
+data class InjectOptions(val themeValue: String?, val raw: Boolean, val timers: Boolean = true)
 
 /** פעולות שדורשות Activity (בורר קבצים, קישורים חיצוניים, OIDC של Google). */
 interface WebHost {
@@ -78,6 +78,9 @@ interface WebHost {
 
     /** Google חוסמת התחברות בתוך WebView; האפליקציה עוברת לזרימת OIDC native. */
     fun onEmbeddedGoogleSignIn()
+
+    /** זמן בישול שזוהה בשלב הכנה: min/max בשניות (טווח כמו "20-25 דקות"); recipe ו-step לתיאור הטיימר. */
+    fun onTimerRequest(minSeconds: Int, maxSeconds: Int, recipe: String?, step: Int?)
 }
 
 /**
@@ -117,6 +120,7 @@ class WebController(
 
     private val script: String by lazy { asset("inject/mobile.js") }
     private val css: String by lazy { asset("inject/mobile.css") }
+    private val timers: String by lazy { asset("inject/timers.js") }
 
     val arrayBufferSupported: Boolean
         get() = WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_ARRAY_BUFFER)
@@ -206,9 +210,12 @@ class WebController(
             if (!options.raw) {
                 options.themeValue?.let { put("theme", it) }
                 put("css", css)
+                put("timers", options.timers)
             }
         }
-        return "window.__mealieApp=$cfg;\n$script"
+        // timers.js מגדיר את MealieTimers (זיהוי זמנים); mobile.js מוסיף את הכפתורים לשלבים
+        val timerScript = if (!options.raw && options.timers) timers else ""
+        return "window.__mealieApp=$cfg;\n$timerScript\n$script"
     }
 
     // ---- פקודות ----
@@ -330,6 +337,14 @@ class WebController(
                 it.copy(dark = bool("dark"), barColor = parseCss(str("bar")), backgroundColor = parseCss(str("background")))
             }
             "wakeLock" -> _state.update { it.copy(wakeLock = bool("on") == true) }
+            "timer" -> {
+                val min = int("min") ?: return
+                val max = int("max") ?: min
+                // AlarmClock.EXTRA_LENGTH: 1 עד 86400 שניות
+                if (min in 1..MAX_TIMER_SECONDS && max in min..MAX_TIMER_SECONDS) {
+                    host.onTimerRequest(min, max, str("recipe")?.trim()?.takeIf { it.isNotEmpty() }?.take(80), int("step"))
+                }
+            }
             "download-begin" -> downloads.begin(
                 int("id") ?: return,
                 str("name") ?: "download",
@@ -475,6 +490,7 @@ class WebController(
 
     companion object {
         const val MAX_STATE_BYTES = 200 * 1024
+        const val MAX_TIMER_SECONDS = 24 * 3600
         const val BLOCKED_CLEARTEXT = -1001
     }
 }

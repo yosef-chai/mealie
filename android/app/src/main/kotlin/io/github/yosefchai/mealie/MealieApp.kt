@@ -22,5 +22,14 @@ class MealieApp : Application() {
         WebStartup.start(this)
         scope.launch { AppGraph.settings.loadPins() }
         UpdateWorker.schedule(this)
+        scope.launch {
+            // ווידג'טים קיימים (אחרי עדכון או אתחול): רענון תקופתי ותצוגה מקדימה בבורר
+            runCatching {
+                if (io.github.yosefchai.mealie.widget.WidgetData.hasWidgets(this@MealieApp)) {
+                    io.github.yosefchai.mealie.widget.WidgetSync.schedule(this@MealieApp)
+                }
+                io.github.yosefchai.mealie.widget.WidgetSync.publishPreviews(this@MealieApp)
+            }
+        }
     }
 }

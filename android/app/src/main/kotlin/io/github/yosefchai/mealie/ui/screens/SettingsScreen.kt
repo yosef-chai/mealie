@@ -27,6 +27,9 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.Sell
+import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Web
 import androidx.compose.material3.AlertDialog
@@ -170,6 +173,11 @@ fun SettingsScreen(vm: AppViewModel, activity: MainActivity) {
                 Section(stringResource(R.string.settings_web)) {
                     SwitchRow(Icons.Rounded.Web, stringResource(R.string.settings_raw), stringResource(R.string.settings_raw_hint), s.rawWebView, vm::setRawWebView)
                     SwitchRow(Icons.Rounded.PhotoCamera, stringResource(R.string.settings_compress), stringResource(R.string.settings_compress_hint), s.compressCameraImages, vm::setCompressImages)
+                    SwitchRow(Icons.Rounded.Timer, stringResource(R.string.settings_timers), stringResource(R.string.settings_timers_hint), s.stepTimers, vm::setStepTimers)
+                }
+                Section(stringResource(R.string.settings_import)) {
+                    SwitchRow(Icons.Rounded.Sell, stringResource(R.string.settings_import_tags), stringResource(R.string.settings_import_tags_hint), s.importTags, vm::setImportTags)
+                    SwitchRow(Icons.Rounded.Category, stringResource(R.string.settings_import_categories), stringResource(R.string.settings_import_categories_hint), s.importCategories, vm::setImportCategories)
                 }
             }
 

@@ -16,7 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import io.github.yosefchai.mealie.core.ThemeMode
 
 // ערכת Material 3 בגוון הכתום של Mealie (#E58325), לפי תפקידי הצבע של M3.
-private val Light = lightColorScheme(
+internal val Light = lightColorScheme(
     primary = Color(0xFF8F4E00),
     onPrimary = Color(0xFFFFFFFF),
     primaryContainer = Color(0xFFFFDCC2),
@@ -54,7 +54,7 @@ private val Light = lightColorScheme(
     surfaceContainerHighest = Color(0xFFF1DFD6),
 )
 
-private val Dark = darkColorScheme(
+internal val Dark = darkColorScheme(
     primary = Color(0xFFFFB77C),
     onPrimary = Color(0xFF4D2700),
     primaryContainer = Color(0xFF6D3A00),

@@ -66,6 +66,8 @@ jobs:
   plan:
     name: Decide what to release
     needs: sync
+    # גם אם הסנכרון נכשל (למשל קונפליקט), הגרסה נבנית: קוד האפליקציה בפורק והתרגומים מהתגית במקור
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -110,6 +112,12 @@ jobs:
             BUILD=false
             echo "Release for Mealie $VERSION already exists; nothing to do."
           fi
+          # Mealie מפרסם את קונטיינר הגרסה דקות אחרי ה-Release, ובדיקת הממשק רצה מולו.
+          # אם הוא עוד לא קיים, מחכים לריצה הבאה (כל 6 שעות) במקום להיכשל.
+          if [ "$BUILD" = "true" ] && ! docker manifest inspect "ghcr.io/$UPSTREAM:$UPSTREAM_TAG" > /dev/null 2>&1; then
+            BUILD=false
+            echo "::notice::The Mealie $UPSTREAM_TAG container is not published yet; the next scheduled run will build this release."
+          fi
           if [ "$PATCH" -gt 99 ]; then
             echo "::error::appPatch would exceed 99"
             exit 1
@@ -128,7 +136,7 @@ jobs:
   build:
     name: Build signed APK
     needs: plan
-    if: needs.plan.outputs.build == 'true'
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -217,7 +225,7 @@ jobs:
   ui-check:
     name: Mobile layer check against Mealie ${{ needs.plan.outputs.upstream_tag }}
     needs: plan
-    if: needs.plan.outputs.build == 'true'
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -248,7 +256,7 @@ jobs:
 
       - name: Wait for Mealie
         run: |
-          for i in $(seq 1 90); do
+          for _ in $(seq 1 90); do
             curl -fsS http://localhost:9000/api/app/about && exit 0
             sleep 2
           done
@@ -257,7 +265,9 @@ jobs:
 
       - name: Run checks
         working-directory: android/ci
-        run: npx playwright test
+        run: |
+          node --test timers.test.mjs
+          npx playwright test
 
       - name: Upload screenshots and report
         if: always()
@@ -272,6 +282,8 @@ jobs:
   release:
     name: Publish release
     needs: [plan, build, ui-check]
+    # מתפרסם רק כשהבנייה ובדיקת הממשק עברו, גם אם הסנכרון בשלב הראשון נכשל
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.ui-check.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -298,7 +310,11 @@ jobs:
             echo
             echo "## Mealie $UPSTREAM_TAG"
             echo
-            gh release view "$UPSTREAM_TAG" -R "$UPSTREAM" --json body --jq .body
+            echo "Full notes: https://github.com/$UPSTREAM/releases/tag/$UPSTREAM_TAG"
+            echo
+            # הפניות #123 מצביעות על המקור, ושמות @user לא מתויגים (בלי התראות לאנשים מהמקור)
+            gh release view "$UPSTREAM_TAG" -R "$UPSTREAM" --json body --jq .body |
+              sed -E -e "s~(^|[^A-Za-z0-9/])#([0-9]+)~\1$UPSTREAM#\2~g" -e 's~(^|[^A-Za-z0-9`])@([A-Za-z0-9][A-Za-z0-9-]*)~\1`@\2`~g'
           } > notes.md
 
       - name: Create release

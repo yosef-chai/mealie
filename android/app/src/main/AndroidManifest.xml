@@ -10,6 +10,8 @@
     <!-- עדכון עצמי מ-GitHub Releases. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+    <!-- טיימר בשעון של הטלפון (AlarmClock.ACTION_SET_TIMER) -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <!-- הורדות ל-Downloads ב-Android 9 ומטה (מ-10 ומעלה MediaStore לא דורש הרשאה). -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -21,6 +23,9 @@
         </intent>
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SET_TIMER" />
         </intent>
     </queries>
 
@@ -116,5 +121,40 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- ווידג'טים למסך הבית -->
+        <receiver
+            android:name=".widget.ShoppingListWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_shopping_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_shopping_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.MealPlanWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_meals_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_meals_info" />
+        </receiver>
+
+        <activity
+            android:name=".widget.ShoppingWidgetConfigActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/widget_choose_list"
+            android:theme="@style/Theme.Mealie">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

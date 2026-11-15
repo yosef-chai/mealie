@@ -45,6 +45,17 @@ val generateMealieStrings = tasks.register<GenerateStringsTask>("generateMealieS
             "mealie_logout" to "user.logout",
             "mealie_language" to "sidebar.language",
             "mealie_api_token" to "settings.token.api-token",
+            "mealie_breakfast" to "meal-plan.breakfast",
+            "mealie_lunch" to "meal-plan.lunch",
+            "mealie_dinner" to "meal-plan.dinner",
+            "mealie_side" to "meal-plan.side",
+            "mealie_snack" to "meal-plan.snack",
+            "mealie_drink" to "meal-plan.drink",
+            "mealie_dessert" to "meal-plan.dessert",
+            "mealie_ingredients" to "recipe.ingredients",
+            "mealie_instructions" to "recipe.instructions",
+            "mealie_edit" to "general.edit",
+            "mealie_recipe_created" to "recipe.recipe-created",
         ),
     )
 }
@@ -158,6 +169,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.play.code.scanner)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

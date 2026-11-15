@@ -112,7 +112,13 @@ class MainActivity : AppCompatActivity(), WebHost {
 
     // ---- הרשאות ----
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    private val localNetworkPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { vm.retry() }
+    private val localNetworkPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+        localNetworkGranted.value = ok
+        vm.retry()
+    }
+
+    // מצב Compose: כרטיס ההסבר נעלם מיד כשההרשאה ניתנת (גם דרך הגדרות המערכת)
+    private val localNetworkGranted = androidx.compose.runtime.mutableStateOf(false)
     private val legacyStoragePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     // ---- OIDC native: Auth Tab מחזיר תוצאה ישירות ----
@@ -130,6 +136,7 @@ class MainActivity : AppCompatActivity(), WebHost {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        localNetworkGranted.value = Build.VERSION.SDK_INT < 37 || granted(PERMISSION_LOCAL_NETWORK)
         enableEdgeToEdge()
         restoreBundle = savedInstanceState?.getBundle(STATE_WEB)
         // הפתיחה נשארת עד שהממשק צויר (onPageCommitVisible), עם תקרה קשיחה של 2 שניות.
@@ -204,9 +211,7 @@ class MainActivity : AppCompatActivity(), WebHost {
             pendingPath = null
             web.load(it)
         }
-        if (Build.VERSION.SDK_INT >= 37 && server.internal?.let { HostPolicy.isPrivateHost(it.host) } == true) {
-            requestLocalNetworkIfNeeded()
-        }
+        if (needsLocalNetworkPermission(server.all)) requestLocalNetworkIfNeeded()
     }
 
     private fun injectOptions(s: AppSettings) = InjectOptions(
@@ -216,6 +221,7 @@ class MainActivity : AppCompatActivity(), WebHost {
             ThemeMode.DARK -> "dark"
         },
         raw = s.rawWebView,
+        timers = s.stepTimers,
     )
 
     private fun applySettings(s: AppSettings) {
@@ -262,6 +268,8 @@ class MainActivity : AppCompatActivity(), WebHost {
                     "/r/create/url?recipe_import_url=" + URLEncoder.encode(url, "UTF-8")
                 }
             }
+            // ווידג'טים וגיליון הייבוא: נתיב בתוך Mealie (מתכון, רשימת קניות)
+            ACTION_OPEN_PATH -> intent.getStringExtra(EXTRA_PATH)?.takeIf { it.startsWith("/") && !it.startsWith("//") }
             ACTION_OPEN -> when (intent.data?.schemeSpecificPart) {
                 "shopping" -> Tab.SHOPPING.rootPath(null)
                 "mealplan" -> Tab.MEALPLAN.rootPath(null)
@@ -369,6 +377,21 @@ class MainActivity : AppCompatActivity(), WebHost {
 
     override fun onEmbeddedGoogleSignIn() = startOidc()
 
+    override fun onTimerRequest(minSeconds: Int, maxSeconds: Int, recipe: String?, step: Int?) {
+        val request = io.github.yosefchai.mealie.web.TimerRequest(minSeconds, maxSeconds, recipe, step)
+        if (minSeconds == maxSeconds) startTimer(request, minSeconds) else vm.requestTimer(request)
+    }
+
+    /** מפעיל טיימר בשעון; אם אין אפליקציית שעון שתומכת בזה, מודיעים. */
+    fun startTimer(request: io.github.yosefchai.mealie.web.TimerRequest, seconds: Int) {
+        vm.requestTimer(null)
+        val ok = io.github.yosefchai.mealie.web.Timers.start(this, seconds, request.recipe, request.step)
+        snackbar.tryEmit(
+            if (ok) getString(R.string.timer_started, io.github.yosefchai.mealie.web.Timers.format(seconds))
+            else getString(R.string.timer_no_clock),
+        )
+    }
+
     /** התחברות דרך דפדפן המערכת (Auth Tab, עם נפילה ל-Custom Tab). */
     fun startOidc() {
         lifecycleScope.launch {
@@ -399,22 +422,40 @@ class MainActivity : AppCompatActivity(), WebHost {
     private var askedLocalNetwork = false
 
     fun requestLocalNetworkIfNeeded() {
-        if (Build.VERSION.SDK_INT < 37 || askedLocalNetwork || granted(PERMISSION_LOCAL_NETWORK)) return
-        askedLocalNetwork = true
-        localNetworkPermission.launch(PERMISSION_LOCAL_NETWORK)
+        if (Build.VERSION.SDK_INT < 37 || granted(PERMISSION_LOCAL_NETWORK)) return
+        if (!askedLocalNetwork) {
+            askedLocalNetwork = true
+            localNetworkPermission.launch(PERMISSION_LOCAL_NETWORK)
+            return
+        }
+        // כבר נשאלה (ואולי נדחתה לצמיתות): הכפתור פותח את הגדרות האפליקציה
+        runCatching {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+        }
     }
 
-    fun needsLocalNetworkPermission(url: ServerUrl?): Boolean =
-        Build.VERSION.SDK_INT >= 37 && url != null && HostPolicy.isPrivateHost(url.host) && !granted(PERMISSION_LOCAL_NETWORK)
+    /** Android 17+: כל כתובת ברשת המקומית (גם אם הוזנה כ"מרוחקת") דורשת את ההרשאה. */
+    fun needsLocalNetworkPermission(urls: List<ServerUrl?>): Boolean =
+        Build.VERSION.SDK_INT >= 37 && urls.any { it != null && HostPolicy.isPrivateHost(it.host) } && !localNetworkGranted.value
 
     private fun granted(permission: String) =
         ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 
     // ---- מחזור חיים ----
 
+    override fun onResume() {
+        super.onResume()
+        val ok = Build.VERSION.SDK_INT < 37 || granted(PERMISSION_LOCAL_NETWORK)
+        if (ok != localNetworkGranted.value) {
+            localNetworkGranted.value = ok
+            if (ok) vm.retry()
+        }
+    }
+
     override fun onPause() {
         super.onPause()
         vm.syncSession()
+        vm.syncWidgets()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -430,6 +471,8 @@ class MainActivity : AppCompatActivity(), WebHost {
     companion object {
         const val ACTION_IMPORT = "io.github.yosefchai.mealie.action.IMPORT"
         const val ACTION_OPEN = "io.github.yosefchai.mealie.action.OPEN"
+        const val ACTION_OPEN_PATH = "io.github.yosefchai.mealie.action.OPEN_PATH"
+        const val EXTRA_PATH = "io.github.yosefchai.mealie.extra.PATH"
         const val EXTRA_IMPORT_URL = "io.github.yosefchai.mealie.extra.IMPORT_URL"
         const val PERMISSION_LOCAL_NETWORK = "android.permission.ACCESS_LOCAL_NETWORK"
         private const val STATE_WEB = "web"

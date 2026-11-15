@@ -22,12 +22,23 @@
     try { localStorage.setItem("vueuse-color-scheme", cfg.theme); } catch (e) { /* localStorage חסום */ }
   }
 
+  // בתחילת המסמך ייתכן שעדיין אין <html>; מחכים לו בלי לעכב את שאר הסקריפט
+  function whenRoot(fn) {
+    if (document.documentElement) { fn(document.documentElement); return; }
+    var mo = new MutationObserver(function () {
+      if (!document.documentElement) return;
+      mo.disconnect();
+      fn(document.documentElement);
+    });
+    mo.observe(document, { childList: true });
+  }
+
   // ---- סגנונות מובייל ----
   if (!cfg.raw && cfg.css) {
     var style = document.createElement("style");
     style.id = "mealie-app-style";
     style.textContent = cfg.css;
-    (document.head || document.documentElement).appendChild(style);
+    whenRoot(function (root) { (document.head || root).appendChild(style); });
   }
 
   // ---- נתיב: Nuxt מנווט ב-pushState, שלא מגיע ל-shouldOverrideUrlLoading ----
@@ -244,4 +255,109 @@
       e.stopPropagation();
     }
   }, true);
+
+  // ---- טיימרים: זמן בישול בשלב הכנה ("אופים 25 דקות") הופך לכפתור שמפעיל טיימר בשעון של הטלפון ----
+  if (!cfg.raw && cfg.timers && window.MealieTimers) installTimers();
+
+  function installTimers() {
+    var finder = window.MealieTimers;
+    // טקסט השלב (Markdown) ושורת הסיכום עם משך השלב (durationSeconds מ-Mealie 3.30)
+    var STEP_TEXT = ".list-group-item .markdown, .list-group-item .summary-wrapper";
+    var SKIP_TAGS = /^(A|BUTTON|CODE|PRE|TEXTAREA|INPUT|SELECT|SCRIPT|STYLE)$/;
+    var scheduled = false;
+
+    function isRecipePage() {
+      return /\/r\/(?!create(?:\/|$))[^/]+\/?$/.test(location.pathname);
+    }
+    function recipeName() {
+      // Mealie קובע את כותרת הדף לשם המתכון (useSeoMeta); בדף אין h1 עם השם
+      var t = (document.title || "").split(" | ")[0].trim();
+      if (!t || /^mealie$/i.test(t)) t = "";
+      return t.slice(0, 80);
+    }
+    function stepNumber(el) {
+      var item = el.closest(".list-group-item");
+      if (!item || !item.parentElement) return null;
+      var items = Array.prototype.filter.call(item.parentElement.children, function (c) { return c.classList.contains("list-group-item"); });
+      var i = items.indexOf(item);
+      return i >= 0 ? i + 1 : null;
+    }
+    function label(seconds) {
+      var h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), s = seconds % 60;
+      return (h ? h + ":" + String(m).padStart(2, "0") : m) + (s ? ":" + String(s).padStart(2, "0") : "");
+    }
+
+    function decorate(container) {
+      if (container.closest("[contenteditable]") || container.querySelector("textarea,input")) return;
+      var walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+        acceptNode: function (n) {
+          for (var p = n.parentElement; p && p !== container; p = p.parentElement) {
+            if (SKIP_TAGS.test(p.tagName) || p.classList.contains("mealie-timer")) return NodeFilter.FILTER_REJECT;
+          }
+          return n.nodeValue && /\d|[֐-׿؀-ۿ]|half|hour|minute/i.test(n.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+        },
+      });
+      var nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      nodes.forEach(function (node) {
+        var text = node.nodeValue;
+        var found = finder.find(text);
+        if (!found.length) return;
+        var frag = document.createDocumentFragment();
+        var at = 0;
+        found.forEach(function (f) {
+          if (f.start > at) frag.appendChild(document.createTextNode(text.slice(at, f.start)));
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "mealie-timer";
+          b.dataset.min = String(f.min);
+          b.dataset.max = String(f.max);
+          b.textContent = text.slice(f.start, f.end);
+          b.setAttribute("aria-label", "⏱ " + b.textContent);
+          b.title = f.min === f.max ? label(f.min) : label(f.min) + "–" + label(f.max);
+          frag.appendChild(b);
+          at = f.end;
+        });
+        if (at < text.length) frag.appendChild(document.createTextNode(text.slice(at)));
+        node.parentNode.replaceChild(frag, node);
+      });
+    }
+
+    function scan() {
+      scheduled = false;
+      if (!isRecipePage()) return;
+      document.querySelectorAll(STEP_TEXT).forEach(function (el) {
+        // Vue מחליף את ה-HTML של השלב כשהטקסט משתנה; מסמנים לפי התוכן כדי לעבד שוב רק כשצריך
+        var sig = el.textContent.length + ":" + el.childElementCount;
+        if (el.dataset.mealieTimers === sig) return;
+        decorate(el);
+        el.dataset.mealieTimers = el.textContent.length + ":" + el.childElementCount;
+      });
+    }
+    function schedule() {
+      if (scheduled) return;
+      scheduled = true;
+      setTimeout(scan, 250);
+    }
+
+    var observer = new MutationObserver(function (records) {
+      // שינויים שלנו (הכפתורים עצמם) לא מפעילים סריקה חוזרת
+      for (var i = 0; i < records.length; i++) {
+        var t = records[i].target;
+        if (!(t.classList && t.classList.contains("mealie-timer"))) { schedule(); return; }
+      }
+    });
+    whenRoot(function (root) { observer.observe(root, { childList: true, subtree: true, characterData: true }); });
+    window.addEventListener("popstate", schedule);
+    document.addEventListener("DOMContentLoaded", schedule);
+
+    // לחיצה: בלי לסמן את השלב כבוצע (לחיצה על כרטיס השלב ב-Mealie מסמנת אותו)
+    document.addEventListener("click", function (e) {
+      var b = e.target && e.target.closest ? e.target.closest(".mealie-timer") : null;
+      if (!b) return;
+      e.preventDefault();
+      e.stopPropagation();
+      post({ type: "timer", min: +b.dataset.min, max: +b.dataset.max, recipe: recipeName(), step: stepNumber(b) });
+    }, true);
+  }
 })();

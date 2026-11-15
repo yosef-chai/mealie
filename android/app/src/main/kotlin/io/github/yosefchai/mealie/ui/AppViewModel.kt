@@ -169,9 +169,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             previous != null && Tab.isLogin(previous) && !Tab.isLogin(path) ->
                 sessions.propagate(ready.url, ready.server.all, maxAge)
             // יציאה מהחשבון: ממסך פנימי ל-/login, והטוקן נמחק בכתובת הפעילה.
-            previous != null && !Tab.isLogin(previous) && Tab.isLogin(path) && sessions.tokenAt(ready.url) == null ->
+            previous != null && !Tab.isLogin(previous) && Tab.isLogin(path) && sessions.tokenAt(ready.url) == null -> {
                 sessions.clearAll(ready.server.all)
+                revokeApiToken(ready.server)
+            }
             !Tab.isLogin(path) -> sessions.propagate(ready.url, ready.server.all, maxAge)
+        }
+    }
+
+    /**
+     * ביציאה מהאפליקציה: אם יש ווידג'טים, מוודאים שיש להם טוקן API (בזמן שהמשתמש מחובר),
+     * ומרעננים אותם כדי שיציגו את מה שהמשתמש שינה באפליקציה (WT-3.2).
+     */
+    fun syncWidgets() {
+        val app = getApplication<Application>()
+        if (_connection.value !is Connection.Ready) return
+        app.let { ctx ->
+            (ctx as? io.github.yosefchai.mealie.MealieApp)?.scope?.launch {
+                runCatching {
+                    if (!io.github.yosefchai.mealie.widget.WidgetData.hasWidgets(ctx)) return@runCatching
+                    io.github.yosefchai.mealie.net.ServerAccess.open(ctx)?.let { io.github.yosefchai.mealie.net.ServerAccess.ensureApiToken(ctx, it) }
+                    io.github.yosefchai.mealie.widget.WidgetSync.refreshSoon(ctx)
+                }
+            }
         }
     }
 
@@ -218,7 +238,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun removeServer(id: String) {
         viewModelScope.launch {
             val server = repo.current().servers.firstOrNull { it.id == id }
-            server?.let { sessions.clearAll(it.all) }
+            server?.let {
+                runCatching { io.github.yosefchai.mealie.net.ServerAccess.revoke(getApplication(), it) }
+                sessions.clearAll(it.all)
+            }
             repo.update { s ->
                 val rest = s.servers.filterNot { it.id == id }
                 s.copy(servers = rest, activeServerId = if (s.activeServerId == id) rest.firstOrNull()?.id else s.activeServerId)
@@ -277,7 +300,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun signOut() {
         val ready = _connection.value as? Connection.Ready ?: return
         sessions.clearAll(ready.server.all)
+        revokeApiToken(ready.server)
     }
+
+    /**
+     * יציאה מהחשבון: גם טוקן ה-API של הווידג'טים מבוטל בשרת ונמחק מהמכשיר,
+     * והווידג'טים עוברים למצב "התחברו". נדרשת קריאה עם הטוקן לפני שהוא נמחק.
+     */
+    private fun revokeApiToken(server: ServerConfig) {
+        val app = getApplication<Application>()
+        viewModelScope.launch {
+            runCatching { io.github.yosefchai.mealie.net.ServerAccess.revoke(app, server) }
+            io.github.yosefchai.mealie.widget.WidgetSync.refreshSoon(app)
+        }
+    }
+
+    // ---- טיימרים ----
+
+    private val _timer = MutableStateFlow<io.github.yosefchai.mealie.web.TimerRequest?>(null)
+    /** טווח זמנים ("20-25 דקות") שממתין לבחירה בגיליון. */
+    val timer: StateFlow<io.github.yosefchai.mealie.web.TimerRequest?> = _timer.asStateFlow()
+
+    fun requestTimer(request: io.github.yosefchai.mealie.web.TimerRequest?) {
+        _timer.value = request
+    }
+
+    fun setStepTimers(on: Boolean) = viewModelScope.launch { repo.update { it.copy(stepTimers = on) } }
+
+    fun setImportTags(on: Boolean) = viewModelScope.launch { repo.update { it.copy(importTags = on) } }
+
+    fun setImportCategories(on: Boolean) = viewModelScope.launch { repo.update { it.copy(importCategories = on) } }
 
     // ---- הגדרות ----
 

@@ -48,6 +48,11 @@ data class AppSettings(
     /** "תצוגת ווב מקורית": מכבה את כל שכבת ההתאמה למובייל. */
     val rawWebView: Boolean = false,
     val skippedUpdateTag: String? = null,
+    /** ייבוא מתכון: מילות המפתח של האתר כתגיות, והקטגוריות שלו (כמו בתיבות הסימון של Mealie). */
+    val importTags: Boolean = false,
+    val importCategories: Boolean = false,
+    /** טיימרים בשלבי ההכנה. */
+    val stepTimers: Boolean = true,
 ) {
     val activeServer: ServerConfig? get() = servers.firstOrNull { it.id == activeServerId } ?: servers.firstOrNull()
 }

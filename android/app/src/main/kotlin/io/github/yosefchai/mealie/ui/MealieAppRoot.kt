@@ -18,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import io.github.yosefchai.mealie.MainActivity
 import io.github.yosefchai.mealie.core.AppSettings
+import io.github.yosefchai.mealie.ui.components.TimerSheet
 import io.github.yosefchai.mealie.ui.screens.MainShell
 import io.github.yosefchai.mealie.ui.screens.OnboardingScreen
 import io.github.yosefchai.mealie.ui.screens.SettingsScreen
@@ -69,5 +70,10 @@ fun MealieAppRoot(vm: AppViewModel, activity: MainActivity) {
                 onClose = { vm.openScreen(Screen.SETTINGS) },
             )
         }
+    }
+
+    val timer by vm.timer.collectAsState()
+    timer?.let { request ->
+        TimerSheet(request = request, onStart = { seconds -> activity.startTimer(request, seconds) }, onDismiss = { vm.requestTimer(null) })
     }
 }

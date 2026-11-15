@@ -178,7 +178,7 @@ fun OnboardingScreen(vm: AppViewModel, activity: MainActivity, firstRun: Boolean
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    if (activity.needsLocalNetworkPermission(internalUrl)) {
+                    if (activity.needsLocalNetworkPermission(listOf(internalUrl, externalUrl))) {
                         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
                             Column(Modifier.padding(16.dp)) {
                                 Text(stringResource(R.string.local_network_explain), style = MaterialTheme.typography.bodyMedium)

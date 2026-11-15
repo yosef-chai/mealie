@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- תצוגה מקדימה לבורר הווידג'טים לפני Android 12: כרטיס עם כותרת ושורות עם תיבות סימון -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="180dp"
+    android:height="180dp"
+    android:viewportWidth="180"
+    android:viewportHeight="180">
+    <path android:fillColor="#FFFFF8F4" android:pathData="M24,0h132a24,24 0,0 1,24 24v132a24,24 0,0 1,-24 24H24A24,24 0,0 1,0 156V24A24,24 0,0 1,24 0z" />
+    <path android:fillColor="#FFE58325" android:pathData="M18,18h20v20h-20z" />
+    <path android:fillColor="#FF3A2E26" android:pathData="M48,23h70v10h-70z" />
+    <path android:strokeColor="#FF9C8F86" android:strokeWidth="2.5" android:pathData="M20,58h14v14h-14z" />
+    <path android:fillColor="#FF5C5048" android:pathData="M44,61h96v8h-96z" />
+    <path android:strokeColor="#FF9C8F86" android:strokeWidth="2.5" android:pathData="M20,88h14v14h-14z" />
+    <path android:fillColor="#FF5C5048" android:pathData="M44,91h76v8h-76z" />
+    <path android:strokeColor="#FF9C8F86" android:strokeWidth="2.5" android:pathData="M20,118h14v14h-14z" />
+    <path android:fillColor="#FF5C5048" android:pathData="M44,121h88v8h-88z" />
+    <path android:fillColor="#FFE58325" android:pathData="M20,148h14v14h-14z" />
+    <path android:fillColor="#FFBDB2AA" android:pathData="M44,151h60v8h-60z" />
+</vector>

@@ -11,5 +11,7 @@ export default defineConfig({
     ...devices["Pixel 7"],
     baseURL: process.env.MEALIE_URL || "http://localhost:9000",
     trace: "retain-on-failure",
+    // הרצה מקומית עם Chromium שכבר מותקן (ב-CI מותקן הדפדפן של Playwright)
+    launchOptions: process.env.PW_EXE ? { executablePath: process.env.PW_EXE } : {},
   },
 });

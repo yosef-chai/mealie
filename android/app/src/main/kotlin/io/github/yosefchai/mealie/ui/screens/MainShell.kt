@@ -170,7 +170,7 @@ fun MainShell(vm: AppViewModel, activity: MainActivity) {
                             onRetry = vm::retry,
                             onSettings = { vm.openScreen(io.github.yosefchai.mealie.ui.Screen.SETTINGS) },
                             onTrust = { hp, fp -> vm.trustCertificate(hp, fp) },
-                            needsLocalPermission = activity.needsLocalNetworkPermission(c.server.internal),
+                            needsLocalPermission = activity.needsLocalNetworkPermission(c.server.all),
                             onGrantLocal = activity::requestLocalNetworkIfNeeded,
                         )
                         else -> LoadingState()
