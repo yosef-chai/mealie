@@ -8,8 +8,10 @@ from mealie.schema.recipe.recipe import RecipeDraft
 from mealie.services.scraper import cleaner
 from mealie.services.scraper.scraped_extras import ScrapedExtras
 
+from .recipe_enricher import finish_recipe
 from .scraper_strategies import (
     ABCScraperStrategy,
+    RecipeScraperHtml,
     RecipeScraperOpenAI,
     RecipeScraperOpenAITranscription,
     RecipeScraperOpenGraph,
@@ -18,6 +20,7 @@ from .scraper_strategies import (
 
 DEFAULT_SCRAPER_STRATEGIES: list[type[ABCScraperStrategy]] = [
     RecipeScraperPackage,
+    RecipeScraperHtml,
     RecipeScraperOpenAITranscription,
     RecipeScraperOpenAI,
     RecipeScraperOpenGraph,
@@ -145,6 +148,12 @@ class RecipeScraper:
             except Exception:
                 self.logger.exception(f"Failed to clean recipe data from {scraper.__class__.__name__}")
                 continue
+
+            extras = extras or ScrapedExtras()
+            try:
+                recipe = finish_recipe(recipe, extras)
+            except Exception:
+                self.logger.exception("Failed to add step times and tools, keeping the recipe without them")
 
             return recipe, extras
 

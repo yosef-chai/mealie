@@ -75,3 +75,57 @@ async def test_finalize_only_stamps_a_cache_key_when_an_image_landed(
     )
 
     assert bool(recipe.image) is expect_key
+
+
+@pytest.mark.asyncio
+async def test_finalize_falls_back_to_the_next_image_candidate(monkeypatch):
+    """כשהתמונה הראשונה לא נטענת (למשל מקור של תמונה ממוזערת שלא קיים), עוברים לבאה בתור."""
+    tried: list[str] = []
+
+    async def fake_scrape_image(self, image_url):
+        tried.append(image_url)
+        if image_url.endswith("broken.jpg"):
+            raise ValueError("404")
+        return Path("/images/original.webp") if image_url.endswith("good.jpg") else None
+
+    monkeypatch.setattr(RecipeDataService, "scrape_image", fake_scrape_image)
+    extras = ScrapedExtras()
+    extras.set_images(
+        ["https://example.com/missing.jpg", "https://example.com/good.jpg", "https://example.com/never.jpg"]
+    )
+
+    recipe = await scraper.finalize_scraped_recipe(
+        RecipeDraft(name="Test Recipe", image="https://example.com/broken.jpg"), get_locale_provider(), extras=extras
+    )
+
+    assert recipe.image
+    assert tried == [
+        "https://example.com/broken.jpg",
+        "https://example.com/missing.jpg",
+        "https://example.com/good.jpg",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_finalize_saves_the_gallery_as_assets(monkeypatch):
+    async def fake_scrape_image(self, image_url):
+        return None
+
+    async def fake_fetch_image(self, image_url, max_bytes=None):
+        if "video" in image_url:
+            raise ValueError("not an image")
+        return (b"\x89PNG", "png") if image_url.endswith(".png") else (b"<svg/>", "svg+xml")
+
+    monkeypatch.setattr(RecipeDataService, "scrape_image", fake_scrape_image)
+    monkeypatch.setattr(RecipeDataService, "fetch_image", fake_fetch_image)
+    extras = ScrapedExtras()
+    extras.set_gallery(["https://example.com/step-1.png", "https://example.com/video", "https://example.com/icon.svg"])
+
+    recipe = await scraper.finalize_scraped_recipe(
+        RecipeDraft(name="Test Recipe"), get_locale_provider(), extras=extras
+    )
+
+    # תמונה שנכשלה או בפורמט שלא נשמר מדולגת, בלי להפיל את הייבוא
+    assert [asset.name for asset in recipe.assets] == ["Image 2"]
+    asset_file = RecipeDataService(recipe.id).dir_assets / recipe.assets[0].file_name  # type: ignore[arg-type, operator]
+    assert asset_file.read_bytes() == b"\x89PNG"
