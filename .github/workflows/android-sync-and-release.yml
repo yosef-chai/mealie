@@ -190,7 +190,7 @@ jobs:
           MEALIE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           MEALIE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: >
-          ./gradlew :app:testReleaseUnitTest :app:assembleRelease --stacktrace
+          ./gradlew :app:testDebugUnitTest :app:assembleRelease --stacktrace
           -PmealieVersion=${{ needs.plan.outputs.version }}
           -PappPatch=${{ needs.plan.outputs.app_patch }}
           -PupdateRepo=${{ github.repository }}
