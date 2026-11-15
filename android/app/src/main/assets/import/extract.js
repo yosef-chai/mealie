@@ -30,7 +30,8 @@
   }
   function isType(o, name) { return types(o).indexOf(name) >= 0; }
   function arr(v) { return v == null ? [] : Array.isArray(v) ? v : [v]; }
-  function abs(u) { try { return u ? new URL(u, location.href).href : null; } catch (e) { return null; } }
+  // יחסית ל-<base href> של הדף, כמו שהדפדפן עצמו מפרש קישורים
+  function abs(u) { try { return u ? new URL(u, document.baseURI || location.href).href : null; } catch (e) { return null; } }
   function meta(name) {
     var el = document.querySelector('meta[property="' + name + '"],meta[name="' + name + '"]');
     return el ? oneLine(el.getAttribute("content")) : "";
@@ -214,12 +215,65 @@
   // סוף המתכון: מכאן מתחילות תגובות, קרדיטים או כתבות אחרות.
   // כותרת משנה של שלבים: "הכנת המלית", "הרכבת הלזניה"
   var STEP_PART = /^(?:הכנת|הרכבת|אופן הכנת|הכנה של|מכינים את)\s\S.{0,30}$/u;
-  var END = /^(?:בתאבון|הכנתם את|מוזמנים לשתף|תגובות|הוסיפו תגובה|כתבו תגובה|טעינו\?|מקור|באדיבות|קרדיט|לכל המתכונים|עוד מתכונים|מתכונים נוספים|אולי יעניין|כתבות נוספות|enjoy!?$|bon app[ée]tit|comments?|leave a (?:comment|reply)|you may also like|more recipes|guten appetit|buon appetito|¡?buen provecho)(?![\p{L}])/iu;
+  var END = /^(?:בתאבון|שיהיה (?:לכם |לכן )?בתאבון|בהצלחה|חג שמח|באהבה|הכנתם את|good luck|happy (?:baking|cooking)|מוזמנים לשתף|תגובות|הוסיפו תגובה|כתבו תגובה|טעינו\?|מקור|באדיבות|קרדיט|לכל המתכונים|עוד מתכונים|מתכונים נוספים|אולי יעניין|כתבות נוספות|enjoy!?$|bon app[ée]tit|comments?|leave a (?:comment|reply)|you may also like|more recipes|guten appetit|buon appetito|¡?buen provecho)(?![\p{L}])/iu;
   // מצרך: כמות (מספר, שבר) או יחידה מוכרת
   var QTY = /[\d½¼¾⅓⅔⅛]|(?:^|\s)(?:כוס|כוסות|כף|כפות|כפית|כפיות|גרם|ק"ג|קילו|מ"ל|ליטר|חבילה|חבילות|קופסה|קופסת|יחידות|שן|שיני|צרור|קורט|קמצוץ|חופן|פרוסות|ביצים|ביצה|cups?|tbsp|tsp|tablespoons?|teaspoons?|grams?|g|kg|ml|l|oz|lbs?|pounds?|pinch|cloves?|tasse|cuillères?|gramm|el|tl|prise|cucchiai[oe]?|cucharadas?)(?![\p{L}])/iu;
   var QTY_START = /^(?:כ-?|~)?[\d½¼¾⅓⅔⅛]/;
   var DATE = /\d{1,2}[\/.]\d{1,2}[\/.]\d{2,4}|\d{2}\/\d{4}/;
   function strongQty(l) { return !DATE.test(l) && (QTY_START.test(l) || (QTY.test(l) && !/^\d+\.\s/.test(l))); }
+
+  // ---- כמות וזמן משורות "תווית: ערך" ("מספר מנות במתכון: 18", "זמן הכנה: 40 דקות", "Serves 4") ----
+  var YIELD_LINE = /^(?:מספר (?:ה)?מנות|מנות|כמות|תפוקה|יוצאות|יוצאים|יוצא|מתאים ל|servings?|serves|yields?|makes|portions?|porciones|portionen|porzioni|personnes)(?![\p{L}])([^:：\d]{0,30})[:：]?\s*(?:כ-?|~|about\s|approx\.?\s)?(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*\d+)?\s*([^\d]{0,25})$/iu;
+  var SERVING_WORD = /מנ(?:ה|ות)|סועד|serv|portion|person|porzion|porcion/i;
+  // "18 servings" ו-"18 מנות" נקראים בשרת כמספר מנות; "24 עוגיות" נשמר ככמות עם יחידה
+  function yieldOf(line) {
+    var t = oneLine(line), m = t.match(YIELD_LINE);
+    if (!m) return null;
+    var n = m[2].replace(",", "."), rest = m[3].replace(/[.)\s]+$/, "").trim();
+    return SERVING_WORD.test(t) || !rest ? n + " servings" : n + " " + rest;
+  }
+  function isYieldLine(l) { return l.length <= 70 && !QTY_START.test(l) && !!yieldOf(l); }
+
+  var TIME_LINE = /^(זמן(?:\s+[\p{L}"'׳״]{2,12}){0,2}|סה"כ(?:\s+זמן)?|total(?:\s+time)?|prep(?:aration)?(?:\s+time)?|cook(?:ing)?(?:\s+time)?|bak(?:e|ing)(?:\s+time)?|time|ready in|zubereitungszeit|backzeit|kochzeit|temps(?:\s+de\s+\p{L}+)?)\s*[:：]\s*(.{1,40})$/iu;
+  function timeKind(label) {
+    if (/קריאה|צפייה|read|watch/i.test(label)) return null; // "זמן קריאה: 3 דקות" אינו זמן של המתכון
+    if (/הכנה|עבודה|prep|zubereitung|préparation/i.test(label)) return "prepTime";
+    if (/אפי|בישול|טיגון|צלי|cook|bak|koch|cuisson/i.test(label)) return "cookTime";
+    return "totalTime";
+  }
+  // "40 דקות", "שעה וחצי", "1-2 שעות", "1 hr 15 min" ← משך ב-ISO 8601 ("PT1H30M"), שהשרת מבין
+  function isoDuration(s) {
+    s = oneLine(s).replace(/½/g, ".5");
+    var min = 0, hours = false, m;
+    var NUM = "(\\d+(?:[.,]\\d+)?)(?:\\s*[-–]\\s*(\\d+(?:[.,]\\d+)?))?\\s*";
+    // בטווח ("1-2 שעות") לוקחים את הגבול העליון: זה הזמן שצריך לתכנן
+    function num(x) { return parseFloat((x[2] || x[1]).replace(",", ".")); }
+    if (/חצי שעה|half an hour/i.test(s)) { min += 30; }
+    else if ((m = s.match(new RegExp(NUM + "(?:שעות|שעה|ש['׳]|hours?|hrs?|h|stunden?|std\\.?|heures?)(?![\\p{L}])", "iu")))) { min += num(m) * 60; hours = true; }
+    else if (/שעתיים/.test(s)) { min += 120; hours = true; }
+    else if (/(?:^|\s)שעה(?![\p{L}])|an hour|one hour/iu.test(s)) { min += 60; hours = true; }
+    if (hours && /וחצי|and a half/i.test(s)) min += 30;
+    if ((m = s.match(new RegExp(NUM + "(?:דקות|דקה|דק['׳]?|minutes?|mins?|minuten|m)(?![\\p{L}])", "iu")))) min += num(m);
+    min = Math.round(min);
+    if (min <= 0 || min > 60 * 24 * 7) return null;
+    return "PT" + (min >= 60 ? Math.floor(min / 60) + "H" : "") + (min % 60 ? (min % 60) + "M" : "");
+  }
+  // שורות קצרות בדף: "זמן: 40 דקות", "מספר מנות: 18". הראשונה מכל סוג קובעת.
+  function pageFacts() {
+    var facts = {};
+    var scope = document.querySelector("article, main, [role=main]") || document.body;
+    var els = scope.querySelectorAll("li,p,dt,dd,td,span,div,strong,b,small,time");
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.children.length > 4 || el.closest(SKIP)) continue;
+      var t = oneLine(el.textContent);
+      if (!t || t.length > 70 || !visible(el)) continue;
+      if (!facts.recipeYield && isYieldLine(t)) facts.recipeYield = yieldOf(t);
+      var m = t.match(TIME_LINE), k = m && timeKind(m[1]);
+      if (k && !facts[k]) { var d = isoDuration(m[2]); if (d) facts[k] = d; }
+    }
+    return facts;
+  }
   function ingredientLike(l) { return l.length <= 140 && (QTY.test(l) || (l.length <= 30 && !/[.!?]$/.test(l))); }
   // כותרת משנה בלי נקודתיים: "לבצק", "למילוי", "תערובת הבשר -"
   var PART = /^(?:ל|ל-|ל־)?ה?(?:בצק|מילוי|רוטב|ציפוי|הגשה|קישוט|בלילה|קרם|סירופ|תערובת|טיגון|מרינדה|תיבול|ציר|קרמבל|גנאש|זיגוג|בסיס|שכבה|קציצות|סלט|ויניגרט|פירורים|עוף|בשר|תוספות|קצפת|מלית|ממרח|מעטפת|כדורים|דגים|ירקות)(?![\p{L}])/u;
@@ -432,15 +486,32 @@
     return abs(best);
   }
 
+  // תמונת המתכון כשאין og:image: הגדולה ביותר בתוכן, בלי לוגו, כותרת אתר, פרסומות ותמונות פרופיל.
+  // תמונה שהטקסט החלופי שלה הוא שם המתכון עדיפה על כל השאר.
+  var IMG_SKIP = "nav,footer,aside,[aria-hidden=true],[role=banner],[role=contentinfo],[class*=related],[class*=share],[class*=advert],[class*=-ad-],[id*=taboola],[class*=taboola],[class*=outbrain],[class*=comment],[class*=newsletter],[class*=author],[class*=avatar]";
+  var IMG_JUNK = /logo|brand|avatar|icon|sprite|pixel|badge|placeholder|spinner|loading|ads?[_-]/i;
   function largestImage() {
-    var best = null, area = 0;
+    var best = null, score = 0;
+    var name = norm(title());
     var scope = document.querySelector("article, main, [role=main]") || document.body;
     scope.querySelectorAll("img").forEach(function (img) {
-      var a = (img.naturalWidth || img.width) * (img.naturalHeight || img.height);
-      var src = img.currentSrc || img.src || img.getAttribute("data-src");
-      if (a > area && src && !/logo|avatar|icon|sprite|pixel|ads?[_-]/i.test(src)) { area = a; best = src; }
+      if (img.closest(IMG_SKIP)) return;
+      // כותרת האתר; כותרת של כתבה בתוך article או main היא חלק מהתוכן
+      var header = img.closest("header");
+      if (header && !header.parentElement.closest("article, main")) return;
+      var src = img.getAttribute("data-src") || img.getAttribute("data-lazy-src") || img.currentSrc || img.src;
+      if (!src || /^data:/.test(src)) return;
+      if (IMG_JUNK.test([src, img.alt, img.className, img.id].join(" "))) return;
+      // ב-WebView של האפליקציה התמונות לא נטענות, ותמונה שלא נטענה מוצגת בגודל הטקסט החלופי שלה.
+      // לכן הגודל מגיע מ-width ו-height של התגית, ורק בלעדיהם מהגודל המוצג.
+      var w = img.naturalWidth || parseInt(img.getAttribute("width"), 10) || img.width || 0;
+      var h = img.naturalHeight || parseInt(img.getAttribute("height"), 10) || img.height || 0;
+      if (w * h < 200 * 150) return;
+      var alt = norm(img.alt || "");
+      var s = w * h * (name && alt.length >= 3 && (alt.indexOf(name) >= 0 || name.indexOf(alt) >= 0) ? 100 : 1);
+      if (s > score) { score = s; best = src; }
     });
-    return area >= 200 * 150 ? abs(best) : null;
+    return abs(best);
   }
 
   function title() {
@@ -510,6 +581,24 @@
     var s2 = sectionize(ingredients, true);
     if (s2.sections.length && s2.items.length >= 2) { ingredients = s2.items; sections.ingredients = s2.sections; }
   }
+
+  // שורת כמות ("מספר מנות במתכון המקורי: 18") שנכנסה לרשימת המצרכים עוברת לשדה הכמות
+  var keptIdx = [];
+  ingredients.forEach(function (l, i) {
+    if (!isYieldLine(l)) { keptIdx.push(i); return; }
+    if (!recipe.recipeYield) recipe.recipeYield = yieldOf(l);
+  });
+  if (keptIdx.length < ingredients.length) {
+    sections.ingredients = sections.ingredients.map(function (s) {
+      return { title: s.title, index: keptIdx.filter(function (i) { return i < s.index; }).length };
+    }).filter(function (s, i, all) { return s.index < keptIdx.length && (!all[i + 1] || all[i + 1].index > s.index); });
+    ingredients = keptIdx.map(function (i) { return ingredients[i]; });
+  }
+  // כמות וזמנים שהמקור לא כולל, מתוך הדף עצמו
+  var facts = pageFacts();
+  ["recipeYield", "prepTime", "cookTime", "totalTime"].forEach(function (k) {
+    if (!recipe[k] && facts[k]) recipe[k] = facts[k];
+  });
 
   recipe.recipeIngredient = ingredients;
   recipe.recipeInstructions = steps.map(function (s) { return { "@type": "HowToStep", text: s }; });

@@ -88,3 +88,73 @@ test("a page that is not a recipe returns its text for AI import", async ({ page
   expect(r.ok).toBe(false);
   expect(r.text).toContain("כתבה בלי מתכון");
 });
+
+// דף מתכון שנבנה ידנית: בלי JSON-LD ובלי og:image, עם <base href="/">, לוגו גדול מעל המתכון,
+// שורת "מספר מנות" בתוך רשימת המצרכים, זמן ברשימת פרטים וברכת סיום אחרי השלבים.
+async function extractAt(page, url, head, body) {
+  await page.route("https://recipes.test/**", (route) =>
+    route.request().resourceType() === "document"
+      ? route.fulfill({ contentType: "text/html; charset=utf-8", body: `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">${head}</head><body>${body}</body></html>` })
+      : route.fulfill({ status: 404 }), // כמו באפליקציה: התמונות לא נטענות
+  );
+  await page.goto(url);
+  return JSON.parse(await page.evaluate(code));
+}
+
+const handmade = `
+  <main class="recipe-page">
+    <div aria-hidden="true" class="letterhead"><img src="assets/site-mark.png" width="1536" height="1024" alt="שם האתר"><strong>שם האתר</strong></div>
+    <div id="recipe-view">
+      <a href="/recipes.html">← לכל המתכונים</a>
+      <div class="recipe-intro">
+        <div><h1>לחמניות שום</h1><p>לחמניות רכות עם חמאת שום.</p>
+          <ul class="meta"><li>זמן: 45 דקות</li><li>רמת קושי: בינונית</li><li>זמן קריאה: 3 דקות</li></ul></div>
+        <img src="assets/garlic-rolls.jpg" width="520" height="520" alt="לחמניות שום">
+      </div>
+      <section><h2>רכיבים</h2><p class="servings">מספר מנות במתכון המקורי: 12</p>
+        <ul><li>500 גר' קמח</li><li>1 כף שמרים</li><li>300 מ"ל מים</li><li>3 שיני שום</li></ul></section>
+      <section><h2>אופן ההכנה</h2>
+        <ol><li>לשים את הקמח, השמרים והמים לבצק רך.</li><li>מחלקים לכדורים ומתפיחים שעה.</li><li>אופים 20 דקות ומורחים חמאת שום!</li><li>בהצלחה רבה ותיהנו!</li></ol></section>
+    </div>
+  </main>`;
+
+test("hand-built page: base href, logo, servings line, time and closing wish", async ({ page }) => {
+  const r = await extractAt(page, "https://recipes.test/recipes/rolls/", `<base href="/"><title>לחמניות שום | שם האתר</title><meta property="og:title" content="לחמניות שום | שם האתר">`, handmade);
+  expect(r.ok).toBe(true);
+  expect(r.image).toBe("https://recipes.test/assets/garlic-rolls.jpg");
+  expect(r.recipe.recipeIngredient).toEqual(["500 גר' קמח", "1 כף שמרים", "300 מ\"ל מים", "3 שיני שום"]);
+  expect(r.recipe.recipeYield).toBe("12 servings");
+  expect(r.recipe.totalTime).toBe("PT45M");
+  expect(r.recipe.recipeInstructions.map((s) => s.text)).toHaveLength(3);
+});
+
+test("the largest image wins when no alt text names the dish", async ({ page }) => {
+  const body = handmade.replace('alt="לחמניות שום">', 'alt="">').replace('src="assets/garlic-rolls.jpg" width="520" height="520"', 'src="assets/garlic-rolls.jpg" width="800" height="600"')
+    .replace('<div aria-hidden="true" class="letterhead">', '<div class="letterhead">').replace("assets/site-mark.png", "assets/brand-wide.png");
+  const r = await extractAt(page, "https://recipes.test/recipes/rolls/", `<base href="/">`, body);
+  expect(r.image).toBe("https://recipes.test/assets/garlic-rolls.jpg");
+});
+
+test("yield and time lines in other forms", async ({ page }) => {
+  const r = await extractAt(page, "https://recipes.test/r/2", "", `
+    <article><h1>Cookies</h1>
+      <p>Prep time: 1 hr 15 min</p><p>Bake time: 12 minutes</p><p>Makes 24 cookies</p>
+      <h2>Ingredients</h2><ul><li>200 g flour</li><li>100 g butter</li><li>1 egg</li></ul>
+      <h2>Instructions</h2><ol><li>Cream the butter and sugar together.</li><li>Bake until the edges are golden.</li></ol>
+    </article>`);
+  expect(r.recipe.prepTime).toBe("PT1H15M");
+  expect(r.recipe.cookTime).toBe("PT12M");
+  expect(r.recipe.recipeYield).toBe("24 cookies");
+});
+
+test("Hebrew hour words become durations", async ({ page }) => {
+  const r = await extractAt(page, "https://recipes.test/r/3", "", `
+    <article><h1>חלה</h1><p>זמן הכנה: שעה וחצי</p><p>זמן אפייה: חצי שעה</p><p>זמן כולל: 2-3 שעות</p><p>מתאים ל-8 סועדים</p>
+      <h2>מצרכים</h2><ul><li>1 ק"ג קמח</li><li>2 כפות שמרים</li><li>2 ביצים</li></ul>
+      <h2>אופן ההכנה</h2><ol><li>לשים את כל החומרים לבצק חלק.</li><li>קולעים ואופים עד הזהבה.</li></ol>
+    </article>`);
+  expect(r.recipe.prepTime).toBe("PT1H30M");
+  expect(r.recipe.cookTime).toBe("PT30M");
+  expect(r.recipe.totalTime).toBe("PT3H");
+  expect(r.recipe.recipeYield).toBe("8 servings");
+});
