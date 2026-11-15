@@ -121,6 +121,10 @@ class MealieClient(val session: MealieSession, private val http: OkHttpClient = 
     suspend fun put(path: String, body: JsonElement): JsonElement =
         call(request(path).put(body.toString().toRequestBody(json)).build())
 
+    /** עדכון חלקי: רק השדות שנשלחים משתנים בשרת. */
+    suspend fun patch(path: String, body: JsonElement): JsonElement =
+        call(request(path).patch(body.toString().toRequestBody(json)).build())
+
     suspend fun delete(path: String): JsonElement = call(request(path).delete().build())
 
     suspend fun putMultipart(path: String, body: MultipartBody): JsonElement = call(request(path).put(body).build())
