@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Sell
 import androidx.compose.material.icons.rounded.Category
+import androidx.compose.material.icons.rounded.Scale
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Web
 import androidx.compose.material3.AlertDialog
@@ -37,6 +38,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -72,6 +74,7 @@ import io.github.yosefchai.mealie.core.ThemeMode
 import io.github.yosefchai.mealie.core.UpdateMode
 import io.github.yosefchai.mealie.ui.AppViewModel
 import io.github.yosefchai.mealie.ui.Connection
+import io.github.yosefchai.mealie.ui.ScaleFixState
 import io.github.yosefchai.mealie.ui.Screen
 import io.github.yosefchai.mealie.ui.UpdateState
 import java.util.Locale
@@ -86,6 +89,8 @@ fun SettingsScreen(vm: AppViewModel, activity: MainActivity) {
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var removing by remember { mutableStateOf<ServerConfig?>(null) }
     var languages by remember { mutableStateOf(false) }
+    val scaleFix by vm.scaleFix.collectAsState()
+    var confirmScale by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Scaffold(
@@ -179,6 +184,21 @@ fun SettingsScreen(vm: AppViewModel, activity: MainActivity) {
                 Section(stringResource(R.string.settings_import)) {
                     SwitchRow(Icons.Rounded.Sell, stringResource(R.string.settings_import_tags), stringResource(R.string.settings_import_tags_hint), s.importTags, vm::setImportTags)
                     SwitchRow(Icons.Rounded.Category, stringResource(R.string.settings_import_categories), stringResource(R.string.settings_import_categories_hint), s.importCategories, vm::setImportCategories)
+                    val running = scaleFix as? ScaleFixState.Running
+                    Row(
+                        Icons.Rounded.Scale,
+                        stringResource(R.string.scale_fix_title),
+                        scaleFixStatus(scaleFix),
+                        onClick = if (running == null && connection is Connection.Ready) ({ confirmScale = true }) else null,
+                    )
+                    if (running != null) {
+                        val modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                        if (running.total > 0) {
+                            LinearProgressIndicator(progress = { running.done.toFloat() / running.total }, modifier = modifier)
+                        } else {
+                            LinearProgressIndicator(modifier = modifier)
+                        }
+                    }
                 }
             }
 
@@ -237,6 +257,31 @@ fun SettingsScreen(vm: AppViewModel, activity: MainActivity) {
     }
 
     if (languages) LanguageDialog(onDismiss = { languages = false })
+
+    if (confirmScale) {
+        AlertDialog(
+            onDismissRequest = { confirmScale = false },
+            icon = { Icon(Icons.Rounded.Scale, null) },
+            title = { Text(stringResource(R.string.scale_fix_confirm_title)) },
+            text = { Text(stringResource(R.string.scale_fix_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = { confirmScale = false; vm.fixAllRecipes() }) { Text(stringResource(R.string.scale_fix_start)) }
+            },
+            dismissButton = { TextButton(onClick = { confirmScale = false }) { Text(stringResource(R.string.mealie_cancel)) } },
+        )
+    }
+}
+
+@Composable
+private fun scaleFixStatus(state: ScaleFixState): String = when (state) {
+    ScaleFixState.Idle -> stringResource(R.string.scale_fix_hint)
+    is ScaleFixState.Running ->
+        if (state.total == 0) stringResource(R.string.scale_fix_starting) else stringResource(R.string.scale_fix_running, state.done, state.total)
+    is ScaleFixState.Done -> listOfNotNull(
+        if (state.updated == 0) stringResource(R.string.scale_fix_nothing) else stringResource(R.string.scale_fix_done, state.updated, state.checked),
+        if (state.failed > 0) stringResource(R.string.scale_fix_some_failed, state.failed) else null,
+    ).joinToString("\n")
+    ScaleFixState.Failed -> stringResource(R.string.scale_fix_error)
 }
 
 @Composable

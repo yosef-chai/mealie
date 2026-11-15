@@ -185,6 +185,11 @@ class RecipeImporter(private val context: Context) {
             runCatching { api.put(path, withTitles) }.onSuccess { recipe = withTitles }
         }
 
+        // כמות ויחידה בכל מצרך, כדי ששינוי מספר המנות יעבוד (השרת שומר מצרכים מיובאים כטקסט בלבד)
+        runCatching { ScalableRecipes(api).fix(slug) }
+            .onSuccess { changed -> if (changed) runCatching { api.get(path).jsonObject }.getOrNull()?.let { recipe = it } }
+            .onFailure { android.util.Log.w("RecipeImporter", "Ingredient amounts were not saved", it) }
+
         // השרת לא תמיד מצליח להוריד את התמונה (חסימת שרתים, hotlink). המכשיר מוריד ומעלה.
         if (recipe.str("image").isNullOrBlank() && !deviceImage.isNullOrBlank()) {
             uploadImage(api, slug, deviceImage, userAgent, pageUrl)

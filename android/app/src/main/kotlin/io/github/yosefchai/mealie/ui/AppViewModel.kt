@@ -66,8 +66,23 @@ sealed interface UpdateState {
     data class Error(val info: UpdateInfo?) : UpdateState
 }
 
+/** עדכון כל המתכונים כך ששינוי מספר המנות יעבוד (מסך ההגדרות). */
+sealed interface ScaleFixState {
+    data object Idle : ScaleFixState
+
+    data class Running(val done: Int, val total: Int) : ScaleFixState
+
+    data class Done(val checked: Int, val updated: Int, val failed: Int) : ScaleFixState
+
+    /** אין חיבור לשרת, או שהמשתמש לא מחובר. */
+    data object Failed : ScaleFixState
+}
+
 sealed interface UiEvent {
     data class Message(val text: Int, val arg: String? = null) : UiEvent
+
+    /** המתכון שמוצג עודכן בשרת: טוענים את הדף מחדש. */
+    data object Reload : UiEvent
 }
 
 enum class Screen { MAIN, SETTINGS, ADD_SERVER }
@@ -97,6 +112,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _update = MutableStateFlow<UpdateState>(UpdateState.Idle)
     val update: StateFlow<UpdateState> = _update.asStateFlow()
+
+    private val _scaleFix = MutableStateFlow<ScaleFixState>(ScaleFixState.Idle)
+    val scaleFix: StateFlow<ScaleFixState> = _scaleFix.asStateFlow()
 
     private val _screen = MutableStateFlow(Screen.MAIN)
     val screen: StateFlow<Screen> = _screen.asStateFlow()
@@ -160,6 +178,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val ready = _connection.value as? Connection.Ready ?: return
         val previous = lastPath
         lastPath = path
+        trackImport(previous, path)
         Tab.groupSlugOf(path)?.let { slug ->
             if (slug != ready.server.groupSlug) viewModelScope.launch { repo.updateServer(ready.server.id) { it.copy(groupSlug = slug) } }
         }
@@ -174,6 +193,37 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 revokeApiToken(ready.server)
             }
             !Tab.isLogin(path) -> sessions.propagate(ready.url, ready.server.all, maxAge)
+        }
+    }
+
+    // ---- מתכון שיובא במסך של Mealie: כמויות במצרכים, כדי ששינוי מספר המנות יעבוד ----
+
+    private var pendingScale: String? = null
+
+    /**
+     * אחרי ייבוא (/r/create/...) Mealie עובר למתכון החדש, לפעמים במצב עריכה. מחכים לתצוגה רגילה,
+     * כדי שהעורך לא ידרוס את העדכון, ואז מעדכנים את המצרכים וטוענים את הדף מחדש.
+     */
+    private fun trackImport(previous: String?, path: String) {
+        // יציאה ממצב עריכה של המתכון שממתין (גם אם השמירה שינתה לו את השם)
+        val wasPending = previous
+            ?.takeIf { Tab.recipeSlugOf(it, viewOnly = true) == null }
+            ?.let { Tab.recipeSlugOf(it, viewOnly = false) }
+            ?.takeIf { it == pendingScale }
+        if (previous != null && Tab.isCreate(previous)) pendingScale = Tab.recipeSlugOf(path, viewOnly = false)
+        val slug = Tab.recipeSlugOf(path, viewOnly = true) ?: return
+        // שמירה ששינתה את השם מעבירה ל-slug חדש
+        if (slug != pendingScale && wasPending == null) return
+        pendingScale = null
+        val app = getApplication<Application>()
+        viewModelScope.launch {
+            val changed = runCatching {
+                val session = io.github.yosefchai.mealie.net.ServerAccess.open(app) ?: return@runCatching false
+                io.github.yosefchai.mealie.importer.ScalableRecipes(io.github.yosefchai.mealie.net.MealieClient(session)).fix(slug)
+            }.onFailure { android.util.Log.w("AppViewModel", "Ingredient amounts were not saved for $slug", it) }
+                .getOrDefault(false)
+            // רק אם המשתמש עדיין באותו מתכון ולא התחיל לערוך
+            if (changed && lastPath?.let { Tab.recipeSlugOf(it, viewOnly = true) } == slug) _events.tryEmit(UiEvent.Reload)
         }
     }
 
@@ -324,6 +374,31 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setImportTags(on: Boolean) = viewModelScope.launch { repo.update { it.copy(importTags = on) } }
 
     fun setImportCategories(on: Boolean) = viewModelScope.launch { repo.update { it.copy(importCategories = on) } }
+
+    /** עובר על כל המתכונים בשרת ומוסיף כמות למצרכים שנשמרו כטקסט. */
+    fun fixAllRecipes() {
+        if (_scaleFix.value is ScaleFixState.Running) return
+        val app = getApplication<Application>()
+        _scaleFix.value = ScaleFixState.Running(0, 0)
+        viewModelScope.launch {
+            val session = runCatching { io.github.yosefchai.mealie.net.ServerAccess.open(app) }.getOrNull()
+            if (session == null) {
+                _scaleFix.value = ScaleFixState.Failed
+                return@launch
+            }
+            _scaleFix.value = runCatching {
+                val r = io.github.yosefchai.mealie.importer.ScalableRecipes(io.github.yosefchai.mealie.net.MealieClient(session))
+                    .fixAll { done, total -> _scaleFix.value = ScaleFixState.Running(done, total) }
+                ScaleFixState.Done(r.checked, r.updated, r.failed)
+            }.getOrElse {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                android.util.Log.w("AppViewModel", "Updating recipes failed", it)
+                ScaleFixState.Failed
+            }
+            // הדף שפתוח מציג את המצרכים הישנים
+            if ((_scaleFix.value as? ScaleFixState.Done)?.updated?.let { it > 0 } == true) _events.tryEmit(UiEvent.Reload)
+        }
+    }
 
     // ---- הגדרות ----
 

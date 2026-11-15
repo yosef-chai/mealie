@@ -100,7 +100,10 @@ fun MainShell(vm: AppViewModel, activity: MainActivity) {
     LaunchedEffect(Unit) { activity.snackbar.collect { snackbar.showSnackbar(it) } }
     LaunchedEffect(Unit) {
         vm.events.collect { e ->
-            if (e is UiEvent.Message) snackbar.showSnackbar(activity.getString(e.text, e.arg.orEmpty()))
+            when (e) {
+                is UiEvent.Message -> snackbar.showSnackbar(activity.getString(e.text, e.arg.orEmpty()))
+                UiEvent.Reload -> web.reload()
+            }
         }
     }
 

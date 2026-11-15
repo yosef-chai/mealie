@@ -95,6 +95,23 @@ class ServerUrlTest {
 
 class TabsTest {
     @Test
+    fun `recipe pages after an import`() {
+        assertTrue(Tab.isCreate("/g/home/r/create/url"))
+        assertTrue(Tab.isCreate("/g/home/r/create/url?recipe_import_url=x"))
+        assertFalse(Tab.isCreate("/g/home/r/created-pasta"))
+        assertEquals("pasta", Tab.recipeSlugOf("/g/home/r/pasta", viewOnly = true))
+        assertEquals("pasta", Tab.recipeSlugOf("/g/home/r/pasta?scale=2", viewOnly = true))
+        // בעריכה או בפענוח מצרכים העורך מחזיק עותק של המתכון
+        assertNull(Tab.recipeSlugOf("/g/home/r/pasta?edit=true", viewOnly = true))
+        assertNull(Tab.recipeSlugOf("/g/home/r/pasta?parse=true", viewOnly = true))
+        assertEquals("pasta", Tab.recipeSlugOf("/g/home/r/pasta?edit=true", viewOnly = false))
+        assertEquals("סופגניות", Tab.recipeSlugOf("/g/home/r/%D7%A1%D7%95%D7%A4%D7%92%D7%A0%D7%99%D7%95%D7%AA", viewOnly = true))
+        assertNull(Tab.recipeSlugOf("/g/home/r/create", viewOnly = false))
+        assertNull(Tab.recipeSlugOf("/g/home/r/pasta/ingredient-parser", viewOnly = false))
+        assertNull(Tab.recipeSlugOf("/shopping-lists", viewOnly = false))
+    }
+
+    @Test
     fun `paths map to tabs`() {
         assertEquals(Tab.RECIPES, Tab.forPath("/g/home"))
         assertEquals(Tab.RECIPES, Tab.forPath("/g/home/r/pasta"))

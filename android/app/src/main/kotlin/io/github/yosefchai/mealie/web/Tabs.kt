@@ -48,5 +48,22 @@ enum class Tab(private val match: Regex?) {
         fun hidesBar(path: String): Boolean = noTabPaths.matches(path)
 
         fun isLogin(path: String): Boolean = path.startsWith("/login")
+
+        /** מסכי יצירת מתכון של Mealie (מקישור, HTML, תמונה, AI, חדש). */
+        fun isCreate(path: String): Boolean = Regex("""^/g/[^/?#]+/r/create(?:[/?#].*)?$""").matches(path)
+
+        private val recipePage = Regex("""^/g/[^/?#]+/r/([^/?#]+)/?(?:\?([^#]*))?(?:#.*)?$""")
+
+        /**
+         * ה-slug של מסך מתכון. viewOnly: רק בתצוגה רגילה, לא בעריכה (?edit=true) או בפענוח מצרכים (?parse=true),
+         * שבהם העורך מחזיק עותק של המתכון ושמירה שלו הייתה דורסת עדכון מבחוץ.
+         */
+        fun recipeSlugOf(path: String, viewOnly: Boolean): String? {
+            val m = recipePage.matchEntire(path) ?: return null
+            val slug = runCatching { java.net.URLDecoder.decode(m.groupValues[1], "UTF-8") }.getOrNull() ?: return null
+            if (slug == "create") return null
+            if (viewOnly && Regex("""(?:^|&)(?:edit|parse)=true(?:&|$)""").containsMatchIn(m.groupValues[2])) return null
+            return slug
+        }
     }
 }
