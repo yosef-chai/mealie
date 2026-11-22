@@ -6,10 +6,6 @@ from mealie.repos.repository_factory import AllRepositories
 from mealie.schema.recipe.recipe_organizers import CategoryOut, CategorySave, TagOut, TagSave, ToolOut, ToolSave
 
 
-class NoContextException(Exception):
-    pass
-
-
 @dataclass(slots=True)
 class ScraperContext:
     repos: AllRepositories
@@ -20,6 +16,16 @@ class ScrapedExtras:
         self._tags: list[str] = []
         self._categories: list[str] = []
         self._tools: list[str] = []
+        # תמונות ראשיות חלופיות, לפי סדר עדיפות, למקרה שהראשונה לא נטענת
+        self.images: list[str] = []
+        # תמונות נוספות של המתכון (שלבים, גלריה) שנשמרות כקבצים מצורפים
+        self.gallery: list[str] = []
+
+    def set_images(self, images: list[str]) -> None:
+        self.images = images
+
+    def set_gallery(self, gallery: list[str]) -> None:
+        self.gallery = gallery
 
     def set_tags(self, tags: list[str]) -> None:
         self._tags = tags

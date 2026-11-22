@@ -5,6 +5,7 @@ from pydantic import UUID4
 from mealie.lang.providers import Translator
 from mealie.repos.repository_factory import AllRepositories
 from mealie.schema.recipe.recipe import RecipeDraft, RecipeUrlBulkCreate
+from mealie.schema.recipe.recipe_organizers import ToolDraft
 from mealie.schema.reports.reports import (
     ReportCategory,
     ReportCreate,
@@ -15,6 +16,7 @@ from mealie.schema.reports.reports import (
 from mealie.schema.user.user import GroupOut
 from mealie.services._base_service import BaseService
 from mealie.services.recipe.recipe_service import RecipeService
+from mealie.services.scraper.scraped_extras import ScrapedExtras, ScraperContext
 from mealie.services.scraper.scraper import create_from_html
 
 
@@ -80,11 +82,10 @@ class RecipeBulkScraperService(BaseService):
     async def scrape(self, urls: RecipeUrlBulkCreate) -> None:
         sem = asyncio.Semaphore(3)
 
-        async def _do(url: str) -> RecipeDraft | None:
+        async def _do(url: str) -> tuple[RecipeDraft, ScrapedExtras | None] | None:
             async with sem:
                 try:
-                    recipe, _ = await create_from_html(url, self.repos, self.translator)
-                    return recipe
+                    return await create_from_html(url, self.repos, self.translator)
                 except Exception as e:
                     self.service.logger.error(f"failed to scrape url during bulk url import {url}")
                     self.service.logger.exception(e)
@@ -95,9 +96,16 @@ class RecipeBulkScraperService(BaseService):
             self.get_report_id()
         tasks = [_do(b.url) for b in urls.imports]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        for b, recipe in zip(urls.imports, results, strict=True):
-            if not recipe or isinstance(recipe, BaseException):
+        for b, result in zip(urls.imports, results, strict=True):
+            if not result or isinstance(result, BaseException):
                 continue
+
+            recipe, extras = result
+            if extras:
+                try:
+                    recipe.tools = [ToolDraft.model_validate(t) for t in extras.use_tools(ScraperContext(self.repos))]
+                except Exception as e:
+                    self.service.logger.warning(f"Could not attach the tools found for {b.url}: {e}")
 
             if b.tags:
                 recipe.tags = b.tags
