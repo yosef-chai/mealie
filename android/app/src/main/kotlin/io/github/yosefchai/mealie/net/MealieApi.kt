@@ -14,7 +14,6 @@ val MealieJson = Json {
 @Serializable
 data class AboutInfo(
     val version: String = "",
-    val production: Boolean = true,
     val enableOidc: Boolean = false,
     val oidcProviderName: String = "",
     val tokenTime: Int = 48,

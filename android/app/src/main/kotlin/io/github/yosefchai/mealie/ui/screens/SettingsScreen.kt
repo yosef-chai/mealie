@@ -5,7 +5,6 @@ import androidx.core.net.toUri
 import android.os.Build
 import android.provider.Settings
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -364,23 +363,21 @@ private fun LanguageDialog(onDismiss: () -> Unit) {
             LazyColumn {
                 item {
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.language_system)) },
-                        modifier = Modifier.clickableRow {
+                        onClick = {
                             AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
                             onDismiss()
                         },
-                    )
+                    ) { Text(stringResource(R.string.language_system)) }
                 }
                 supported.forEach { locale ->
                     item {
                         ListItem(
-                            headlineContent = { Text(locale.getDisplayName(locale).replaceFirstChar { it.titlecase(locale) }) },
-                            supportingContent = { Text(locale.getDisplayName(current)) },
-                            modifier = Modifier.clickableRow {
+                            onClick = {
                                 AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(locale.toLanguageTag()))
                                 onDismiss()
                             },
-                        )
+                            supportingContent = { Text(locale.getDisplayName(current)) },
+                        ) { Text(locale.getDisplayName(locale).replaceFirstChar { it.titlecase(locale) }) }
                     }
                 }
             }
@@ -388,8 +385,6 @@ private fun LanguageDialog(onDismiss: () -> Unit) {
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.mealie_close)) } },
     )
 }
-
-private fun Modifier.clickableRow(onClick: () -> Unit) = this.clickable(onClick = onClick)
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

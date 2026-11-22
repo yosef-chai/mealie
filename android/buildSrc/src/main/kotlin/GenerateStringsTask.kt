@@ -15,6 +15,7 @@ import java.io.File
 /**
  * מייצר values-<qualifier>/strings.xml לכל השפות של Mealie:
  * - מחרוזות שקיימות כבר ב-Mealie נלקחות מ-frontend/app/lang/messages (mealieKeys: שם משאב → מפתח מקונן).
+ *   מפתח שנעלם מהמקור או שינה צורה מקבל את הטקסט מ-mealieFallbacks, כדי שעדכון של Mealie לא יעצור את הבנייה.
  * - מחרוזות ייחודיות לאפליקציה נלקחות מ-android/i18n/<locale>.json, עם נפילה לאנגלית.
  */
 @CacheableTask
@@ -30,6 +31,9 @@ abstract class GenerateStringsTask : DefaultTask() {
 
     @get:Input
     abstract val mealieKeys: MapProperty<String, String>
+
+    @get:Input
+    abstract val mealieFallbacks: MapProperty<String, String>
 
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
@@ -49,6 +53,12 @@ abstract class GenerateStringsTask : DefaultTask() {
             ?: throw GradleException("Missing $SOURCE_LOCALE.json in $appDir")
         val mealieSource = readNested(langFiles.first { it.nameWithoutExtension == SOURCE_LOCALE })
         val keys = mealieKeys.get()
+        val fallbacks = mealieFallbacks.get()
+        val missingKeys = keys.filter { (_, path) -> lookup(mealieSource, path)?.let(::isPlainMessage) != true }
+        for ((res, path) in missingKeys) {
+            if (fallbacks[res].isNullOrBlank()) throw GradleException("No fallback text for '$res' ($path)")
+            warn("Mealie key '$path' is missing or not plain in $SOURCE_LOCALE; '$res' uses the English fallback")
+        }
 
         val problems = mutableListOf<String>()
         val tags = mutableListOf<String>()
@@ -61,11 +71,10 @@ abstract class GenerateStringsTask : DefaultTask() {
 
             val entries = sortedMapOf<String, String>()
             for ((res, path) in keys) {
-                val value = lookup(mealie, path)
-                val usable = value != null && isPlainMessage(value)
+                val value = if (res in missingKeys) null else lookup(mealie, path)?.takeIf(::isPlainMessage)
                 when {
-                    usable -> entries[res] = value!!
-                    isSource -> problems += "Mealie key '$path' missing or not plain in $SOURCE_LOCALE"
+                    value != null -> entries[res] = value
+                    isSource -> entries[res] = fallbacks.getValue(res)
                 }
             }
             for ((res, source) in appSource) {
@@ -100,6 +109,12 @@ abstract class GenerateStringsTask : DefaultTask() {
         if (problems.isNotEmpty()) {
             throw GradleException("String generation failed:\n" + problems.joinToString("\n"))
         }
+    }
+
+    /** ב-GitHub Actions האזהרה מופיעה גם בסיכום הריצה. */
+    private fun warn(message: String) {
+        if (System.getenv("GITHUB_ACTIONS") == "true") println("::warning::$message")
+        logger.warn(message)
     }
 
     private fun readNested(file: File): Map<*, *> =

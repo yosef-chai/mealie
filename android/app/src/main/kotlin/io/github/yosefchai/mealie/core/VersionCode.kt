@@ -21,7 +21,4 @@ object VersionCode {
         val n = m.groupValues[4].ifEmpty { "0" }.toInt()
         return Parsed("$x.$y.$z", n, of(x.toInt(), y.toInt(), z.toInt(), n))
     }
-
-    fun tagFor(mealieVersion: String, appPatch: Int): String =
-        if (appPatch == 0) "android-v$mealieVersion" else "android-v$mealieVersion.$appPatch"
 }

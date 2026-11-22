@@ -137,10 +137,10 @@ object IngredientQuantities {
         val first = HALF_FIRST.matchEntire(rest)
         val after = if (first == null) HALF_AFTER.matchEntire(rest) else null
         when {
-            first != null -> { qty = qty!! + fraction(first.groupValues[1]); rest = first.groupValues[2] }
-            after != null -> { qty = qty!! + fraction(after.groupValues[2]); rest = "${after.groupValues[1]} ${after.groupValues[3]}" }
+            first != null -> { qty += fraction(first.groupValues[1]); rest = first.groupValues[2] }
+            after != null -> { qty += fraction(after.groupValues[2]); rest = "${after.groupValues[1]} ${after.groupValues[3]}" }
         }
-        return finish(qty!!, rest.trimStart(' ', '-', '–', '—', ':'), approx, line, allowEmptyNote)
+        return finish(qty, rest.trimStart(' ', '-', '–', '—', ':'), approx, line, allowEmptyNote)
     }
 
     // "קמח – 500 גרם" ← "500 גרם קמח"

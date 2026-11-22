@@ -18,46 +18,40 @@ val langDirProvider = providers.gradleProperty("mealieLangDir")
     .map { rootProject.layout.projectDirectory.dir(it) }
     .orElse(rootProject.layout.projectDirectory.dir("../frontend/app/lang/messages"))
 
+// לכל משאב: המפתח ב-Mealie, וטקסט באנגלית למקרה שהמפתח ישתנה או יימחק במקור (הבנייה ממשיכה עם אזהרה)
+val mealieStrings = listOf(
+    Triple("mealie_recipes", "general.recipes", "Recipes"),
+    Triple("mealie_meal_planner", "meal-plan.meal-planner", "Meal Planner"),
+    Triple("mealie_shopping_lists", "shopping-list.shopping-lists", "Shopping Lists"),
+    Triple("mealie_cookbooks", "sidebar.cookbooks", "Cookbooks"),
+    Triple("mealie_settings", "general.settings", "Settings"),
+    Triple("mealie_cancel", "general.cancel", "Cancel"),
+    Triple("mealie_close", "general.close", "Close"),
+    Triple("mealie_save", "general.save", "Save"),
+    Triple("mealie_delete", "general.delete", "Delete"),
+    Triple("mealie_update", "general.update", "Update"),
+    Triple("mealie_back", "general.back", "Back"),
+    Triple("mealie_loading", "general.loading", "Loading"),
+    Triple("mealie_login", "user.login", "Login"),
+    Triple("mealie_language", "sidebar.language", "Language"),
+    Triple("mealie_api_token", "settings.token.api-token", "API Token"),
+    Triple("mealie_breakfast", "meal-plan.breakfast", "Breakfast"),
+    Triple("mealie_lunch", "meal-plan.lunch", "Lunch"),
+    Triple("mealie_dinner", "meal-plan.dinner", "Dinner"),
+    Triple("mealie_side", "meal-plan.side", "Side"),
+    Triple("mealie_snack", "meal-plan.snack", "Snack"),
+    Triple("mealie_drink", "meal-plan.drink", "Drink"),
+    Triple("mealie_dessert", "meal-plan.dessert", "Dessert"),
+    Triple("mealie_edit", "general.edit", "Edit"),
+    Triple("mealie_recipe_created", "recipe.recipe-created", "Recipe created"),
+)
+
 val generateMealieStrings = tasks.register<GenerateStringsTask>("generateMealieStrings") {
     mealieLangDir.set(langDirProvider)
     appI18nDir.set(rootProject.layout.projectDirectory.dir("i18n"))
     outputDir.set(layout.buildDirectory.dir("generated/res/mealieStrings"))
-    mealieKeys.set(
-        mapOf(
-            "mealie_recipes" to "general.recipes",
-            "mealie_meal_planner" to "meal-plan.meal-planner",
-            "mealie_shopping_lists" to "shopping-list.shopping-lists",
-            "mealie_cookbooks" to "sidebar.cookbooks",
-            "mealie_settings" to "general.settings",
-            "mealie_cancel" to "general.cancel",
-            "mealie_close" to "general.close",
-            "mealie_save" to "general.save",
-            "mealie_confirm" to "general.confirm",
-            "mealie_delete" to "general.delete",
-            "mealie_update" to "general.update",
-            "mealie_share" to "general.share",
-            "mealie_back" to "general.back",
-            "mealie_download" to "general.download",
-            "mealie_import" to "general.import",
-            "mealie_loading" to "general.loading",
-            "mealie_version" to "about.version",
-            "mealie_login" to "user.login",
-            "mealie_logout" to "user.logout",
-            "mealie_language" to "sidebar.language",
-            "mealie_api_token" to "settings.token.api-token",
-            "mealie_breakfast" to "meal-plan.breakfast",
-            "mealie_lunch" to "meal-plan.lunch",
-            "mealie_dinner" to "meal-plan.dinner",
-            "mealie_side" to "meal-plan.side",
-            "mealie_snack" to "meal-plan.snack",
-            "mealie_drink" to "meal-plan.drink",
-            "mealie_dessert" to "meal-plan.dessert",
-            "mealie_ingredients" to "recipe.ingredients",
-            "mealie_instructions" to "recipe.instructions",
-            "mealie_edit" to "general.edit",
-            "mealie_recipe_created" to "recipe.recipe-created",
-        ),
-    )
+    mealieKeys.set(mealieStrings.associate { (res, key, _) -> res to key })
+    mealieFallbacks.set(mealieStrings.associate { (res, _, english) -> res to english })
 }
 
 val releaseKeystore = providers.environmentVariable("MEALIE_KEYSTORE_FILE")
@@ -151,8 +145,6 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.browser)
@@ -163,11 +155,8 @@ dependencies {
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
-    implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
-    implementation(libs.compose.material3.navsuite)
     implementation(libs.compose.material.icons)
-    debugImplementation(libs.compose.ui.tooling)
 
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
