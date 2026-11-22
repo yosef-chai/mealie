@@ -11,7 +11,15 @@
     <!-- range navigation and page actions share one toolbar, kept apart from the plan below -->
     <div class="d-flex flex-wrap align-center ga-2">
       <div class="range-nav d-flex align-center ga-2">
-        <v-btn :icon="$globals.icons.chevronLeft" flat rounded="md" density="comfortable" @click="() => changeWeek(-1)" />
+        <v-btn
+          :icon="$globals.icons.chevronLeft"
+          class="range-arrow"
+          :aria-label="$t('general.back')"
+          flat
+          rounded="md"
+          density="comfortable"
+          @click="() => changeWeek(-1)"
+        />
         <v-menu
           v-model="state.picker"
           :close-on-content-click="false"
@@ -89,7 +97,15 @@
             </template>
           </v-card>
         </v-menu>
-        <v-btn :icon="$globals.icons.chevronRight" flat rounded="md" density="comfortable" @click="() => changeWeek(1)" />
+        <v-btn
+          :icon="$globals.icons.chevronRight"
+          class="range-arrow"
+          :aria-label="$t('general.next')"
+          flat
+          rounded="md"
+          density="comfortable"
+          @click="() => changeWeek(1)"
+        />
       </div>
       <v-btn-toggle
         v-model="mealPlanPreferences.mode"
@@ -433,5 +449,10 @@ const weekRecipesWithScales = computed(() => {
 
 .range-button :deep(.v-btn__content) {
   white-space: normal;
+}
+
+/* "previous" sits at the start of the row, so in a right-to-left language it is on the right and must point right */
+.v-locale--is-rtl .range-arrow :deep(.v-icon) {
+  transform: scaleX(-1);
 }
 </style>
