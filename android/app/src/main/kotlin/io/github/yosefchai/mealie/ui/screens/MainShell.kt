@@ -278,7 +278,8 @@ private fun NavLabel(text: String) {
     val style = LocalTextStyle.current
     Text(
         text = text,
-        modifier = Modifier.fillMaxWidth(),
+        // רווח בין תוויות שכנות; בלעדיו "תכנון ארוחות רשימות קניות" נקרא כשורה אחת במסך צר
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         textAlign = TextAlign.Center,
         maxLines = 1,
         softWrap = false,
