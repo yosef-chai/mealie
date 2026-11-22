@@ -20,8 +20,15 @@ def page(body: str, *ld: dict, head: str = "") -> str:
     return f"<!DOCTYPE html><html><head><title>מתכון | המטבח</title>{head}{scripts}</head><body>{body}</body></html>"
 
 
+def offline_scraper(scrapers: list) -> RecipeScraper:
+    """A scraper without a database: the AI enrichment, which reads group settings, stays off."""
+    scraper = RecipeScraper(None, get_locale_provider(), scrapers=scrapers)  # type: ignore[arg-type]
+    scraper._should_enrich = lambda: False  # type: ignore[method-assign]
+    return scraper
+
+
 async def scrape(html: str, url: str = URL) -> tuple[RecipeDraft, ScrapedExtras]:
-    scraper = RecipeScraper(None, get_locale_provider(), scrapers=[RecipeScraperPackage, RecipeScraperHtml])  # type: ignore[arg-type]
+    scraper = offline_scraper([RecipeScraperPackage, RecipeScraperHtml])
     recipe, extras = await scraper._scrape_with_strategies(scraper.scrapers, url, html, url)
     assert recipe is not None and extras is not None
     return recipe, extras
@@ -224,7 +231,7 @@ async def test_page_without_structured_data_is_read_from_its_headings():
 @pytest.mark.asyncio
 async def test_page_without_a_recipe_is_not_accepted():
     body = "<h1>חדשות</h1><p>אין כאן מתכון</p><h2>מצרכים</h2><p>רק שורה אחת</p>"
-    scraper = RecipeScraper(None, get_locale_provider(), scrapers=[RecipeScraperHtml])  # type: ignore[arg-type]
+    scraper = offline_scraper([RecipeScraperHtml])
     recipe, _ = await scraper._scrape_with_strategies(scraper.scrapers, URL, page(body), URL)
     assert recipe is None
 
