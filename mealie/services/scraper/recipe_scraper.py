@@ -16,10 +16,8 @@ from mealie.services.recipe.import_workflow import (
 from mealie.services.scraper import cleaner
 from mealie.services.scraper.scraped_extras import ScrapedExtras
 
-from .recipe_enricher import finish_recipe
 from .scraper_strategies import (
     ABCScraperStrategy,
-    RecipeScraperHtml,
     RecipeScraperOpenAI,
     RecipeScraperOpenAITranscription,
     RecipeScraperOpenGraph,
@@ -28,7 +26,6 @@ from .scraper_strategies import (
 
 DEFAULT_SCRAPER_STRATEGIES: list[type[ABCScraperStrategy]] = [
     RecipeScraperPackage,
-    RecipeScraperHtml,
     RecipeScraperOpenAITranscription,
     RecipeScraperOpenAI,
     RecipeScraperOpenGraph,
@@ -157,7 +154,6 @@ class RecipeScraper:
                 self.logger.exception(f"Failed to clean recipe data from {scraper.__class__.__name__}")
                 continue
 
-            extras = extras or ScrapedExtras()
             if not ScraperClass.uses_ai and self._should_enrich():
                 await self._enrich(
                     recipe,
@@ -167,12 +163,6 @@ class RecipeScraper:
                     on_progress=on_progress,
                     resolve_organizers=include_tags or include_categories,
                 )
-
-            # After enrichment, so step times and tools come from the final step text
-            try:
-                recipe = finish_recipe(recipe, extras)
-            except Exception:
-                self.logger.exception("Failed to add step times and tools, keeping the recipe without them")
 
             return recipe, extras
 

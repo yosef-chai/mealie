@@ -25,13 +25,6 @@
             "yields": "Yields"
         },
         "and-amount": "and {amount}",
-        "import-credit": {
-            "title": "Credit",
-            "recipe-by": "Recipe",
-            "photo-by": "Photos",
-            "source": "Source",
-            "image": "Image {number}"
-        },
         "pdf": {
             "cookbook": "Cookbook",
             "contents": "Contents",

@@ -49,58 +49,6 @@ def test_body_indicates_challenge():
     assert fetch.body_indicates_challenge(b"<html><body>A normal recipe for cookies</body></html>") is False
 
 
-@pytest.mark.parametrize(
-    "body",
-    [
-        pytest.param(
-            b'<head><link rel="dns-prefetch" href="https://challenges.cloudflare.com">'
-            b'<meta property="og:title" content="x">',
-            id="turnstile-prefetch",
-        ),
-        pytest.param(
-            b"<script src='/cdn-cgi/challenge-platform/scripts/jsd/main.js'></script>"
-            b'<script type="application/ld+json">{}</script>',
-            id="bot-detection-script",
-        ),
-        pytest.param(
-            b'<script src="https://js.datadome.co/tags.js"></script><div itemtype="https://schema.org/Recipe">',
-            id="datadome-tag",
-        ),
-    ],
-)
-def test_real_page_that_mentions_an_anti_bot_host_is_not_a_challenge(body: bytes):
-    """דף אמיתי מזכיר לא פעם את שרתי ה-anti-bot, ואסור להתייחס אליו כדף אתגר."""
-    assert fetch.body_indicates_challenge(body) is False
-
-
-@pytest.mark.parametrize(
-    ("url", "expected"),
-    [
-        ("https://validate.perfdrive.com/?ssa=1&ssc=https%3A%2F%2Fwww.example.co.il%2F", True),
-        ("https://geo.captcha-delivery.com/captcha/?initialCid=1", True),
-        ("https://www.example.co.il/food/recipe", False),
-    ],
-)
-def test_url_indicates_challenge(url: str, expected: bool):
-    assert fetch.url_indicates_challenge(url) is expected
-
-
-@pytest.mark.asyncio
-async def test_rotates_past_a_redirect_to_a_challenge_host(monkeypatch):
-    state = _patch_responses(
-        monkeypatch,
-        [
-            _FakeResponse(200, body=b"<html>verify you are human</html>", url="https://validate.perfdrive.com/?ssa=1"),
-            _FakeResponse(200, body=b"<html>real recipe</html>"),
-        ],
-    )
-    result = await fetch.resilient_fetch("https://x/r")
-
-    assert result is not None
-    assert result.content == b"<html>real recipe</html>"
-    assert state["attempts"] == 2
-
-
 def test_body_indicates_challenge_only_samples_head():
     # A marker past the sampled window should not be detected.
     body = b"x" * (fetch._CHALLENGE_BODY_SAMPLE + 100) + b"datadome"

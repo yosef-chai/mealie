@@ -42,28 +42,8 @@ _CHALLENGE_BODY_MARKERS: tuple[bytes, ...] = (
     b"px-captcha",
     b"perimeterx",
     b"datadome",
-    b"validate.perfdrive.com",
-    b"shieldsquare",
 )
 _CHALLENGE_BODY_SAMPLE = 4096
-
-# דף אמיתי מזכיר לא פעם את אותם שרתי anti-bot (dns-prefetch ל-Turnstile, סקריפט הזיהוי של
-# Cloudflare). לדף אתגר אף פעם אין structured data או Open Graph, אז אחד מאלה מעיד על דף אמיתי.
-_REAL_PAGE_MARKERS: tuple[bytes, ...] = (
-    b"application/ld+json",
-    b'property="og:',
-    b"property='og:",
-    b"itemtype=",
-)
-
-# מנהלי בוטים שמפנים לדף אתגר בשרת משלהם שמחזיר 200, כך שרק שרת הנחיתה מסגיר אותם.
-_CHALLENGE_REDIRECT_HOSTS: frozenset[str] = frozenset(
-    {
-        "validate.perfdrive.com",  # Radware Bot Manager
-        "geo.captcha-delivery.com",  # DataDome
-        "captcha-delivery.com",
-    }
-)
 
 _BASE_BACKOFF = 1.0
 _MAX_BACKOFF = 5.0
@@ -118,21 +98,7 @@ def headers_indicate_challenge(headers: httpx.Headers) -> bool:
 
 def body_indicates_challenge(content: bytes) -> bool:
     sample = content[:_CHALLENGE_BODY_SAMPLE].lower()
-    if not any(marker in sample for marker in _CHALLENGE_BODY_MARKERS):
-        return False
-
-    # הסמן יכול להיות סתם הפניה מדף אמיתי (ראו _REAL_PAGE_MARKERS)
-    lowered = content.lower()
-    return not any(marker in lowered for marker in _REAL_PAGE_MARKERS)
-
-
-def url_indicates_challenge(url: str | httpx.URL) -> bool:
-    """True כשהפניה נחתה על שרת האתגר של מנהל בוטים."""
-    try:
-        host = (httpx.URL(str(url)).host or "").lower()
-    except Exception:
-        return False
-    return host in _CHALLENGE_REDIRECT_HOSTS or any(host.endswith(f".{h}") for h in _CHALLENGE_REDIRECT_HOSTS)
+    return any(marker in sample for marker in _CHALLENGE_BODY_MARKERS)
 
 
 def _build_transport(impersonate: str, proxy: str | None = None) -> AsyncSafeTransport:
@@ -221,11 +187,7 @@ async def _attempt(
             status_code = resp.status_code
             retry_after = resp.headers.get("Retry-After")
 
-            blocked = (
-                is_challenge_status(status_code)
-                or headers_indicate_challenge(resp.headers)
-                or url_indicates_challenge(resp.url)
-            )
+            blocked = is_challenge_status(status_code) or headers_indicate_challenge(resp.headers)
 
             if blocked:
                 logger.debug(f'Challenge/block detected (status={status_code}) with impersonation "{impersonation}"')

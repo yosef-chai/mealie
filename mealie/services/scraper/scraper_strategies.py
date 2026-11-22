@@ -29,7 +29,6 @@ from mealie.services.recipe.import_workflow import (
 from mealie.services.scraper.scraped_extras import ScrapedExtras
 
 from . import cleaner
-from . import recipe_text as rt
 
 # Re-exported for backwards compatibility with existing importers (e.g. recipe route error handling).
 # safe_scrape_html lives in `fetch` so the import workflow can fetch pages without importing this module.
@@ -39,8 +38,6 @@ from .fetch import (  # noqa: F401
     ForceTimeoutException,
     safe_scrape_html,
 )
-from .page_analysis import Line, PageAnalysis
-from .recipe_enricher import build_ingredients, build_steps, enrich_recipe
 
 logger = get_logger()
 
@@ -167,8 +164,6 @@ class ABCScraperStrategy(ABC):
 
 
 class RecipeScraperPackage(ABCScraperStrategy):
-    _page: PageAnalysis | None = None
-
     def can_scrape(self) -> bool:
         return bool(self.url or self.raw_html)
 
@@ -330,21 +325,12 @@ class RecipeScraperPackage(ABCScraperStrategy):
             notes=get_notes(),
         )
 
-        try:
-            schema = scraped_data.schema.data or {}
-        except Exception:
-            schema = {}
-        page = self._page or PageAnalysis(self.raw_html or "", self.resource_url)
-        page.fallback_recipe = schema
-        recipe = enrich_recipe(recipe, extras, page, self.translator, schema=schema, url=url)
-
         return recipe, extras
 
     async def scrape_url(self) -> SchemaScraperFactory.SchemaScraper | Any | None:
         from recipe_scrapers import NoSchemaFoundInWildMode, scrape_html
 
         recipe_html = await self.get_html(self.url)
-        self._page = PageAnalysis(recipe_html, self.resource_url)
 
         try:
             # scrape_html requires a URL, but we might not have one, so we default to a dummy URL
@@ -387,66 +373,6 @@ class RecipeScraperPackage(ABCScraperStrategy):
             return None
 
         return self.clean_scraper(scraped_data, self.url)
-
-
-class RecipeScraperHtml(ABCScraperStrategy):
-    """קורא מתכון ממבנה הדף כשאין בו structured data: כותרות "מצרכים" / "אופן ההכנה" והרשימות שאחריהן.
-
-    רץ אחרי RecipeScraperPackage ולפני ה-fallbacks. דורש גם מצרכים וגם שלבים, כך שדף אתגר
-    או דף שאינו מתכון לא עובר.
-    """
-
-    MIN_INGREDIENTS = 2
-
-    def can_scrape(self) -> bool:
-        return bool(self.raw_html or self.url)
-
-    async def get_html(self, url: str) -> str:
-        return self.raw_html or await safe_scrape_html(url)
-
-    def build(self, page: PageAnalysis) -> tuple[RecipeDraft, ScrapedExtras] | None:
-        ingredient_lines = page.section("ingredients")
-        step_lines = page.section("instructions")
-        ingredients = build_ingredients(ingredient_lines)
-        steps = build_steps([RecipeStep(text=line.text) for line in _with_heading_marks(step_lines)])
-        if len(ingredients) < self.MIN_INGREDIENTS or not steps:
-            return None
-
-        labels = page.labeled_values()
-        times = {
-            field: rt.duration_value(labels[key])
-            for key, field in (("prep", "prep"), ("cook", "perform"), ("total", "total"))
-            if key in labels
-        }
-        recipe = RecipeDraft(
-            name=cleaner.clean_string(page.title()) or None,
-            slug="",
-            description=cleaner.clean_string(page.description()),
-            recipe_ingredient=ingredients,
-            recipe_instructions=steps,
-            prep_time_seconds=times.get("prep"),
-            perform_time_seconds=times.get("perform"),
-            total_time_seconds=times.get("total"),
-            org_url=self.url or None,
-        )
-        extras = ScrapedExtras()
-        extras.set_tags(page.article_tags())
-        enrich_recipe(recipe, extras, page, self.translator, schema={}, url=self.url)
-        return recipe, extras
-
-    async def parse(self, on_progress: Callable[[str], Awaitable[None]] | None = None):
-        if on_progress:
-            await on_progress(self.translator.t("recipe.create-progress.extracting-recipe-data"))
-
-        html = await self.get_html(self.url)
-        if not html:
-            return None
-        return self.build(PageAnalysis(html, self.resource_url))
-
-
-def _with_heading_marks(lines: list[Line]) -> list[Line]:
-    """כותרת בתוך רשימת השלבים מקבלת נקודתיים, כדי ש-build_steps יזהה אותה ככותרת."""
-    return [Line(f"{line.text.rstrip(':')}:", heading=True) if line.heading else line for line in lines]
 
 
 class RecipeScraperOpenAI(ABCScraperStrategy):

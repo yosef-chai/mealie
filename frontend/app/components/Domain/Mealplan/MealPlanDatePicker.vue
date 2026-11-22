@@ -13,15 +13,7 @@
   >
     <template #controls="{ yearText, monthYearText, prevMonth, nextMonth, disabled }">
       <div class="d-flex justify-space-between w-100">
-        <v-btn
-          :disabled="disabled.includes('prev-month')"
-          :icon="$globals.icons.chevronLeft"
-          class="month-arrow"
-          :aria-label="$t('general.back')"
-          flat
-          density="comfortable"
-          @click="prevMonth"
-        />
+        <v-btn :disabled="disabled.includes('prev-month')" :icon="$globals.icons.chevronLeft" flat density="comfortable" @click="prevMonth" />
         <div class="text-center">
           <div class="text-body-large">
             {{ monthYearText.split(' ')[0] }}
@@ -30,15 +22,7 @@
             {{ yearText }}
           </div>
         </div>
-        <v-btn
-          :disabled="disabled.includes('next-month')"
-          :icon="$globals.icons.chevronRight"
-          class="month-arrow"
-          :aria-label="$t('general.next')"
-          flat
-          density="comfortable"
-          @click="nextMonth"
-        />
+        <v-btn :disabled="disabled.includes('next-month')" :icon="$globals.icons.chevronRight" flat density="comfortable" @click="nextMonth" />
       </div>
     </template>
   </v-date-picker>
@@ -92,10 +76,3 @@ function hasMealPlanned(date: string): DatePickerEventColorValue {
   return isSelected ? "grey-lighten-3" : "grey";
 }
 </script>
-
-<style scoped>
-/* in a right-to-left language the previous month is on the right, so its arrow points right */
-.v-locale--is-rtl .month-arrow :deep(.v-icon) {
-  transform: scaleX(-1);
-}
-</style>

@@ -15,8 +15,6 @@ from mealie.lang.providers import Translator, get_all_translations
 from mealie.schema.recipe.recipe import MAX_DURATION_SECONDS, RecipeDraft
 from mealie.services.parser_services.parser_utils import extract_quantity_from_string
 
-from . import recipe_text
-
 logger = get_logger("recipe-scraper")
 
 NO_IMAGE = "no image"
@@ -46,9 +44,6 @@ MATCH_MULTI_SPACE = re.compile(r" +")
 
 MATCH_ERRONEOUS_WHITE_SPACE = re.compile(r"\n\s*\n")
 """ Matches multiple new lines and removes erroneous white space """
-
-MATCH_LEADING_QUANTITY = re.compile(r"^\s*(?:about\s+|approx\.?\s+|כ-?)?[\d½¼¾⅓⅔⅛]", re.IGNORECASE)
-""" כמות בתחילת הטקסט: `4 Batches`, `כ-20 עוגיות` """
 
 
 def clean(recipe_data: RecipeDraft | dict, translator: Translator, url=None) -> RecipeDraft:
@@ -85,13 +80,9 @@ def clean(recipe_data: RecipeDraft | dict, translator: Translator, url=None) -> 
         else:
             recipe_data[time_key] = clean_time(recipe_data.get(time_key), translator)
 
-    if recipe_data.get("recipeServings") or recipe_data.get("recipeYieldQuantity"):
-        # הכמות כבר פורקה למנות ולתפוקה, ופירוק חוזר של הטקסט היה מאבד את זה
-        recipe_data["recipeYield"] = clean_string(recipe_data.get("recipeYield") or "")
-    else:
-        recipe_data["recipeServings"], recipe_data["recipeYieldQuantity"], recipe_data["recipeYield"] = clean_yield(
-            recipe_data.get("recipeYield")
-        )
+    recipe_data["recipeServings"], recipe_data["recipeYieldQuantity"], recipe_data["recipeYield"] = clean_yield(
+        recipe_data.get("recipeYield")
+    )
     recipe_data["recipeCategory"] = clean_categories(recipe_data.get("recipeCategory", []))
     recipe_data["recipeIngredient"] = clean_ingredients(recipe_data.get("recipeIngredient", []))
     recipe_data["recipeInstructions"] = clean_instructions(recipe_data.get("recipeInstructions", []))
@@ -191,8 +182,7 @@ def _step_heading(instruction: dict) -> str:
     # compare the cleaned forms: a name carrying HTML entities would otherwise sail past
     # the check against text that has already had them decoded
     heading = clean_string(name).strip()
-    # שם בלי מידע ("שלב 1", "Step 2", "null 3") אינו כותרת
-    if not heading or recipe_text.generic_step_name(heading):
+    if not heading:
         return ""
 
     # sites also truncate the text into the name (yummly's "Step 1: Preheat oven to 425…"),
@@ -505,10 +495,7 @@ def clean_yield(yields: str | list[str] | None) -> tuple[float, float, str]:
             yld = str(yld)
 
         qty, txt = extract_quantity_from_string(yld)
-        if qty and not _is_serving_string(yld) and not MATCH_LEADING_QUANTITY.match(yld):
-            # מספר באמצע הטקסט הוא מידה ("תבנית 23*23 ס"מ"), לא כמות
-            yld_qty, yld_str = 0, clean_string(yld)
-        elif qty and _is_serving_string(yld):
+        if qty and _is_serving_string(yld):
             servings_qty = qty
         else:
             yld_qty = qty
