@@ -152,3 +152,64 @@ test("cooking times in recipe steps become timer buttons", async ({ page, reques
   await chips.first().click();
   await expect.poll(async () => (await messages(page, "timer")).at(-1)).toMatchObject({ min: 1200, max: 1500, step: 1 });
 });
+
+test("servings arrows and pull-to-refresh guard", async ({ page, request }) => {
+  test.setTimeout(120_000);
+  // מתכון עם מצרך מקושר: רק אז Mealie מציג את כפתורי שינוי המנות
+  const auth = await request.post("/api/auth/token", { form: { username: USER, password: PASSWORD } });
+  const headers = { Authorization: `Bearer ${(await auth.json()).access_token}` };
+  const food = await (await request.post("/api/foods", { headers, data: { name: `flour ${Date.now()}` } })).json();
+  const slug = await (await request.post("/api/recipes", { headers, data: { name: `Servings check ${Date.now()}` } })).json();
+  const recipe = await (await request.get(`/api/recipes/${slug}`, { headers })).json();
+  recipe.recipeServings = 2;
+  recipe.recipeIngredient = [{ quantity: 2, food, note: "", referenceId: "11111111-1111-4111-8111-111111111111" }];
+  expect((await request.put(`/api/recipes/${slug}`, { headers, data: recipe })).ok()).toBe(true);
+
+  await login(page);
+  const self = await (await request.get("/api/users/self", { headers })).json();
+  await page.goto(`/g/${self.groupSlug}/r/${slug}`);
+
+  const row = page.locator("[data-mealie-stepper]:visible").first();
+  await expect(row).toBeVisible();
+  const value = row.locator(".v-card");
+  const [dec, inc] = [row.locator(".v-item-group > .v-btn").first(), row.locator(".v-item-group > .v-btn").last()];
+  await expect(dec).toHaveAttribute("aria-label", /.+/);
+  // חץ למטה לפני הכמות וחץ למעלה אחריה (order ב-CSS), שלושתם בגובה 40
+  await expect(inc).toHaveCSS("order", "2");
+  await expect(value).toHaveCSS("height", "40px");
+  await expect(value).toContainText("2");
+  await inc.click();
+  await expect(value).toContainText("3");
+
+  // החלון: חיצים סביב שדה הכמות, משנים את אותו ערך והחלון נשאר פתוח
+  await value.click();
+  const popup = page.locator("[data-mealie-servings]");
+  // החלון נפתח באנימציית scale; לחיצה באמצע נוחתת על התוכן שמתחתיו
+  await expect(page.locator(".v-overlay__content:has([data-mealie-servings])")).toHaveCSS("transform", "none");
+  await expect(popup.locator(".mealie-pop-step")).toHaveCount(2);
+  await popup.locator(".mealie-pop-step.inc").click();
+  await expect(popup.locator("input")).toHaveValue("4");
+  await expect(value).toContainText("4");
+  await expect(popup).toBeVisible();
+  for (let i = 0; i < 3; i++) await popup.locator(".mealie-pop-step.dec").click();
+  await expect(value).toContainText("1");
+  await expect(popup.locator(".mealie-pop-step.dec")).toBeDisabled();
+
+  // משיכה לרענון: לא מתוך חלון פתוח
+  await popup.locator("input").dispatchEvent("touchstart");
+  await expect.poll(async () => (await messages(page, "pull")).at(-1)?.allowed).toBe(false);
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator("main.v-main").dispatchEvent("touchstart");
+  await expect.poll(async () => (await messages(page, "pull")).at(-1)?.allowed).toBe(true);
+  // ולא כשהדף גלול
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await expect.poll(async () => (await messages(page, "pull")).at(-1)?.allowed).toBe(false);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect.poll(async () => (await messages(page, "pull")).at(-1)?.allowed).toBe(true);
+  // ולא כשדיאלוג נועל את הדף (Vuetify מקבע את המסמך, והגלילה שלו נראית 0)
+  // חיפוש בכותרת (בטלפון: הכפתור שלפני היציאה) נפתח כדיאלוג
+  await page.locator("header.v-app-bar button").nth(-2).click();
+  await expect(page.locator(".v-dialog.v-overlay--active")).toBeVisible();
+  await expect.poll(async () => (await messages(page, "pull")).at(-1)?.allowed).toBe(false);
+});

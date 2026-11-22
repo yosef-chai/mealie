@@ -109,6 +109,54 @@
     reportTheme();
   })();
 
+  // ---- משיכה לרענון: מותרת רק כשהדף באמת בראשו ----
+  // ה-WebView יודע רק על גלילת המסמך. דיאלוג של Vuetify נועל את המסמך (position: fixed, גלילה 0),
+  // אז בלי הדיווח הזה כל משיכה קטנה בתוך דיאלוג או רשימה גלולה מרעננת את הדף ומוחקת את מה שהוקלד.
+  var scrolledInside = new Set();
+  var lastPull = null;
+  var pullFrame = 0;
+
+  function pullAllowed(target) {
+    var root = document.documentElement;
+    if (!root) return true;
+    if ((window.scrollY || root.scrollTop) > 0) return false;
+    if (root.classList.contains("v-overlay-scroll-blocked")) return false;
+    if (document.querySelector(".v-dialog.v-overlay--active, .v-navigation-drawer--temporary.v-navigation-drawer--active")) return false;
+    if (target && target.closest && target.closest(".v-overlay__content")) return false;
+    var blocked = false;
+    scrolledInside.forEach(function (el) {
+      if (!el.isConnected || el.scrollTop <= 0) { scrolledInside.delete(el); return; }
+      // בלי נקודת מגע לא יודעים אם האצבע על התוכן הגלול; עדיף לחסום מאשר לרענן בטעות
+      if (!target || el.contains(target)) blocked = true;
+    });
+    return !blocked;
+  }
+
+  function reportPull(target) {
+    var allowed = pullAllowed(target);
+    if (allowed === lastPull) return;
+    lastPull = allowed;
+    post({ type: "pull", allowed: allowed });
+  }
+
+  function schedulePull() {
+    if (pullFrame) return;
+    pullFrame = requestAnimationFrame(function () { pullFrame = 0; reportPull(null); });
+  }
+
+  // scroll לא מבעבע, אבל נתפס בשלב ה-capture גם מאלמנטים פנימיים
+  document.addEventListener("scroll", function (e) {
+    var el = e.target;
+    if (el && el.nodeType === 1 && el.scrollTop > 0) scrolledInside.add(el);
+    schedulePull();
+  }, { capture: true, passive: true });
+  document.addEventListener("touchstart", function (e) { reportPull(e.target); }, { capture: true, passive: true });
+  whenRoot(function (root) {
+    // Vuetify מוסיף ל-<html> מחלקה כשדיאלוג נועל את הגלילה
+    new MutationObserver(schedulePull).observe(root, { attributes: true, attributeFilter: ["class"] });
+  });
+  window.addEventListener("pageshow", function () { lastPull = null; schedulePull(); });
+
   // ---- פקודות מהאפליקציה ----
   bridge.onmessage = function (event) {
     var msg;
@@ -259,6 +307,9 @@
   // ---- טיימרים: זמן בישול בשלב הכנה ("אופים 25 דקות") הופך לכפתור שמפעיל טיימר בשעון של הטלפון ----
   if (!cfg.raw && cfg.timers && window.MealieTimers) installTimers();
 
+  // ---- תוספות ממשק: חיצי מנות, צבע תווית ברשימת קניות, תרגום חסר ----
+  if (!cfg.raw) installEnhancements();
+
   function installTimers() {
     var finder = window.MealieTimers;
     // טקסט השלב (Markdown) ושורת הסיכום עם משך השלב (durationSeconds מ-Mealie 3.30)
@@ -359,5 +410,128 @@
       e.stopPropagation();
       post({ type: "timer", min: +b.dataset.min, max: +b.dataset.max, recipe: recipeName(), step: stepNumber(b) });
     }, true);
+  }
+
+  function installEnhancements() {
+    var scheduled = false;
+    // מחרוזות ש-Mealie עדיין לא תרגם; התרגום ב-he-IL.json מגיע רק כשהשרת מתעדכן
+    var MISSING_HE = { Days: "ימים", Weeks: "שבועות" };
+
+    // השפה שנבחרה ב-Mealie (העוגייה של nuxt-i18n), ולא שפת הטלפון; ל-<html> אין lang
+    function hebrew() {
+      var cookie = /(?:^|;\s*)i18n_redirected=([^;]+)/.exec(document.cookie);
+      var locale = (cookie && decodeURIComponent(cookie[1])) || document.documentElement.lang || navigator.language || "";
+      return /^he(-|$)/i.test(locale);
+    }
+    function words() {
+      return hebrew()
+        ? { fewer: "פחות מנות", more: "יותר מנות" }
+        : { fewer: "Fewer servings", more: "More servings" };
+    }
+    function isDisabled(btn) {
+      return btn.disabled || btn.classList.contains("v-btn--disabled");
+    }
+
+    // שורת המנות של Mealie (RecipeScaleEditButton): כרטיס שפותח תפריט, ואחריו כפתורי − ו-+
+    function servingRow(row) {
+      var card = row.querySelector(":scope > div > .v-card[aria-haspopup]");
+      var buttons = row.querySelectorAll(":scope > .v-item-group > .v-btn");
+      return card && buttons.length === 2 ? { card: card, dec: buttons[0], inc: buttons[1] } : null;
+    }
+    function stepperFor(menuId) {
+      var card = document.querySelector('[aria-controls="' + CSS.escape(menuId) + '"]');
+      var row = card && card.closest("[data-mealie-stepper]");
+      return row ? servingRow(row) : null;
+    }
+
+    function popButton(kind, label, menuId) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "mealie-pop-step " + kind;
+      b.setAttribute("aria-label", label);
+      // לוחצים על הכפתור של Mealie עצמו, כך שהחישוב והגבולות שלו נשמרים.
+      // Vuetify לא סוגר את החלון על click() מהקוד: הוא סוגר רק כשהלחיצה התחילה מחוץ לחלון.
+      b.addEventListener("click", function () {
+        var s = stepperFor(menuId);
+        var target = s && (kind === "dec" ? s.dec : s.inc);
+        if (target && !isDisabled(target)) target.click();
+        schedule();
+      });
+      return b;
+    }
+
+    function enhancePopup(menuId, s, w) {
+      var menu = document.getElementById(menuId);
+      var input = menu && menu.querySelector(".v-number-input");
+      var line = input && input.parentElement;
+      if (!line) return;
+      var card = line.closest(".v-card");
+      if (card && !card.hasAttribute("data-mealie-servings")) card.setAttribute("data-mealie-servings", "");
+      var dec = line.querySelector(":scope > .mealie-pop-step.dec");
+      if (!dec) {
+        dec = popButton("dec", w.fewer, menuId);
+        // בסוף השורה, אחרי הצמתים של Vue, כדי לא להפריע לעדכונים שלו; הסדר על המסך נקבע ב-CSS
+        line.appendChild(dec);
+        line.appendChild(popButton("inc", w.more, menuId));
+      }
+      dec.disabled = isDisabled(s.dec);
+    }
+
+    function enhanceServings() {
+      var w = words();
+      document.querySelectorAll(".text-center.d-flex.align-center").forEach(function (row) {
+        var s = servingRow(row);
+        if (!s) return;
+        if (!row.hasAttribute("data-mealie-stepper")) row.setAttribute("data-mealie-stepper", "");
+        if (s.dec.getAttribute("aria-label") !== w.fewer) s.dec.setAttribute("aria-label", w.fewer);
+        if (s.inc.getAttribute("aria-label") !== w.more) s.inc.setAttribute("aria-label", w.more);
+        var menuId = s.card.getAttribute("aria-controls");
+        if (menuId) enhancePopup(menuId, s, w);
+      });
+    }
+
+    function translateMissing() {
+      if (!hebrew()) return;
+      document.querySelectorAll(".range-nav ~ .v-btn-toggle .v-btn__content").forEach(function (el) {
+        var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          var node = walker.currentNode;
+          var text = node.nodeValue.trim();
+          if (MISSING_HE[text]) node.nodeValue = node.nodeValue.replace(text, MISSING_HE[text]);
+        }
+      });
+    }
+
+    // רשימת קניות: צבע התווית יושב כרקע inline על כותרת הקבוצה; ה-CSS מציג אותו כנקודה
+    function labelColors() {
+      document.querySelectorAll(".shopping-list-section > .v-expansion-panel-title").forEach(function (title) {
+        var color = title.style.backgroundColor;
+        if (color && title.style.getPropertyValue("--mealie-label") !== color) title.style.setProperty("--mealie-label", color);
+      });
+    }
+
+    function run() {
+      scheduled = false;
+      [enhanceServings, translateMissing, labelColors].forEach(function (fn) {
+        try { fn(); } catch (e) { /* שינוי במבנה של Mealie לא שובר את שאר התוספות */ }
+      });
+    }
+    function schedule() {
+      if (scheduled) return;
+      scheduled = true;
+      setTimeout(run, 80);
+    }
+
+    var observer = new MutationObserver(function (records) {
+      for (var i = 0; i < records.length; i++) {
+        var t = records[i].target;
+        if (!(t.classList && t.classList.contains("mealie-pop-step"))) { schedule(); return; }
+      }
+    });
+    // disabled: כפתור ה-− של Mealie מושבת במנה אחת, והחץ בחלון צריך להשבת איתו
+    whenRoot(function (root) {
+      observer.observe(root, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["disabled"] });
+    });
+    document.addEventListener("DOMContentLoaded", schedule);
   }
 })();

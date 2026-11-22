@@ -109,12 +109,17 @@ class WebController(
     val container: SwipeRefreshLayout = SwipeRefreshLayout(context).apply {
         addView(webHost, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         // היעד הוא ה-FrameLayout, אז הגלילה נבדקת מול ה-WebView עצמו.
-        setOnChildScrollUpCallback { _, _ -> webView?.canScrollVertically(-1) == true }
+        // WebView רואה רק את גלילת המסמך; גלילה בתוך דיאלוג או רשימה פנימית מדווחת מהדף (pullBlocked).
+        setOnChildScrollUpCallback { _, _ -> pullBlocked || webView?.canScrollVertically(-1) == true }
         setOnRefreshListener { webView?.reload() ?: run { isRefreshing = false } }
     }
 
     var webView: WebView? = null
         private set
+
+    /** הדף דיווח שמשיכה עכשיו תהיה גלילה ולא רענון: דיאלוג פתוח, או תוכן פנימי שאינו בראש. */
+    @Volatile
+    private var pullBlocked = false
 
     private var server: ServerUrl? = null
     private var allServers: List<ServerUrl> = emptyList()
@@ -354,6 +359,7 @@ class WebController(
                 it.copy(dark = bool("dark"), barColor = parseCss(str("bar")), backgroundColor = parseCss(str("background")))
             }
             "wakeLock" -> _state.update { it.copy(wakeLock = bool("on") == true) }
+            "pull" -> pullBlocked = bool("allowed") == false
             "timer" -> {
                 val min = int("min") ?: return
                 val max = int("max") ?: min
@@ -430,6 +436,8 @@ class WebController(
 
         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
             val foreign = allServers.none { it.sameOrigin(url) }
+            // דף חדש: מצב הגלילה של הדף הקודם לא רלוונטי
+            pullBlocked = false
             _state.update { it.copy(loading = true, error = null, routerReady = false, foreignPage = foreign) }
             if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) && allServers.any { it.sameOrigin(url) }) {
                 view.evaluateJavascript(buildScript(), null)
