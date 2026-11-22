@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
@@ -34,19 +32,32 @@ import androidx.compose.material.icons.rounded.Scale
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Web
 import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Colorize
+import androidx.compose.material.icons.rounded.Update
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,9 +88,11 @@ import io.github.yosefchai.mealie.ui.Connection
 import io.github.yosefchai.mealie.ui.ScaleFixState
 import io.github.yosefchai.mealie.ui.Screen
 import io.github.yosefchai.mealie.ui.UpdateState
+import io.github.yosefchai.mealie.ui.components.ListGroup
+import io.github.yosefchai.mealie.ui.components.groupItemColors
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(vm: AppViewModel, activity: MainActivity) {
     val settings by vm.settings.collectAsState()
@@ -96,7 +109,7 @@ fun SettingsScreen(vm: AppViewModel, activity: MainActivity) {
     Scaffold(
         modifier = Modifier.nestedScroll(scroll.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
+            LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.app_settings)) },
                 navigationIcon = {
                     IconButton(onClick = { vm.openScreen(Screen.MAIN) }) {
@@ -112,133 +125,174 @@ fun SettingsScreen(vm: AppViewModel, activity: MainActivity) {
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
-                top = padding.calculateTopPadding(),
+                top = padding.calculateTopPadding() + 8.dp,
                 bottom = padding.calculateBottomPadding() + 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             item {
-                Section(stringResource(R.string.settings_servers)) {
+                ListGroup(stringResource(R.string.settings_servers)) {
                     s.servers.forEach { server ->
                         val active = server.id == s.activeServer?.id
-                        Row(
-                            icon = if (active) Icons.Rounded.CheckCircle else Icons.Rounded.Dns,
-                            title = server.displayName,
-                            subtitle = listOfNotNull(server.externalUrl, server.internalUrl).joinToString("\n"),
-                            onClick = { if (!active) vm.switchServer(server.id) },
-                            trailing = {
-                                IconButton(onClick = { removing = server }) {
-                                    Icon(Icons.Rounded.DeleteOutline, stringResource(R.string.mealie_delete))
+                        row { shapes ->
+                            SettingRow(
+                                shapes = shapes,
+                                icon = if (active) Icons.Rounded.CheckCircle else Icons.Rounded.Dns,
+                                title = server.displayName,
+                                subtitle = listOfNotNull(server.externalUrl, server.internalUrl).joinToString("\n"),
+                                onClick = { if (!active) vm.switchServer(server.id) },
+                                highlighted = active,
+                                trailing = {
+                                    IconButton(onClick = { removing = server }) {
+                                        Icon(Icons.Rounded.DeleteOutline, stringResource(R.string.mealie_delete))
+                                    }
+                                },
+                            )
+                        }
+                    }
+                    row { shapes ->
+                        SettingRow(shapes, Icons.Rounded.Add, stringResource(R.string.server_add), null, onClick = { vm.openScreen(Screen.ADD_SERVER) })
+                    }
+                }
+            }
+
+            item {
+                ListGroup(stringResource(R.string.settings_appearance)) {
+                    row { shapes ->
+                        SegmentedListItem(
+                            shapes = shapes,
+                            colors = groupItemColors(),
+                            leadingContent = { Icon(Icons.Rounded.Palette, null) },
+                            supportingContent = {
+                                ConnectedChoice(
+                                    options = listOf(
+                                        ThemeMode.SYSTEM to R.string.theme_system,
+                                        ThemeMode.LIGHT to R.string.theme_light,
+                                        ThemeMode.DARK to R.string.theme_dark,
+                                    ),
+                                    selected = s.theme,
+                                    onSelect = vm::setTheme,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
+                            },
+                        ) { Text(stringResource(R.string.settings_theme)) }
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        row { shapes ->
+                            SwitchRow(shapes, Icons.Rounded.Colorize, stringResource(R.string.settings_dynamic_color), stringResource(R.string.settings_dynamic_color_hint), s.dynamicColor, vm::setDynamicColor)
+                        }
+                    }
+                    row { shapes ->
+                        SettingRow(
+                            shapes,
+                            Icons.Rounded.Language,
+                            stringResource(R.string.mealie_language),
+                            currentLanguageName(),
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    // רשימת השפות של המערכת לאפליקציה (נוצרת מ-generateLocaleConfig).
+                                    val intent = Intent(Settings.ACTION_APP_LOCALE_SETTINGS, "package:${context.packageName}".toUri())
+                                    // יש יצרנים שהסירו את המסך הזה; אז הבורר הפנימי.
+                                    runCatching { context.startActivity(intent) }.onFailure { languages = true }
+                                } else {
+                                    languages = true
                                 }
                             },
                         )
                     }
-                    Row(Icons.Rounded.Add, stringResource(R.string.server_add), null, onClick = { vm.openScreen(Screen.ADD_SERVER) })
                 }
             }
 
             item {
-                Section(stringResource(R.string.settings_appearance)) {
-                    Row(Icons.Rounded.Palette, stringResource(R.string.settings_theme), null)
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-                        val modes = listOf(
-                            ThemeMode.SYSTEM to R.string.theme_system,
-                            ThemeMode.LIGHT to R.string.theme_light,
-                            ThemeMode.DARK to R.string.theme_dark,
+                ListGroup(stringResource(R.string.settings_web)) {
+                    row { SwitchRow(it, Icons.Rounded.Web, stringResource(R.string.settings_raw), stringResource(R.string.settings_raw_hint), s.rawWebView, vm::setRawWebView) }
+                    row { SwitchRow(it, Icons.Rounded.PhotoCamera, stringResource(R.string.settings_compress), stringResource(R.string.settings_compress_hint), s.compressCameraImages, vm::setCompressImages) }
+                    row { SwitchRow(it, Icons.Rounded.Timer, stringResource(R.string.settings_timers), stringResource(R.string.settings_timers_hint), s.stepTimers, vm::setStepTimers) }
+                }
+            }
+
+            item {
+                ListGroup(stringResource(R.string.settings_import)) {
+                    row { SwitchRow(it, Icons.Rounded.Sell, stringResource(R.string.settings_import_tags), stringResource(R.string.settings_import_tags_hint), s.importTags, vm::setImportTags) }
+                    row { SwitchRow(it, Icons.Rounded.Category, stringResource(R.string.settings_import_categories), stringResource(R.string.settings_import_categories_hint), s.importCategories, vm::setImportCategories) }
+                    row { shapes ->
+                        val running = scaleFix as? ScaleFixState.Running
+                        SettingRow(
+                            shapes = shapes,
+                            icon = Icons.Rounded.Scale,
+                            title = stringResource(R.string.scale_fix_title),
+                            subtitle = scaleFixStatus(scaleFix),
+                            onClick = if (running == null && connection is Connection.Ready) ({ confirmScale = true }) else null,
+                            below = running?.let { r ->
+                                {
+                                    val modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                                    if (r.total > 0) {
+                                        LinearWavyProgressIndicator(progress = { r.done.toFloat() / r.total }, modifier = modifier)
+                                    } else {
+                                        LinearWavyProgressIndicator(modifier = modifier)
+                                    }
+                                }
+                            },
                         )
-                        modes.forEachIndexed { i, (mode, label) ->
-                            SegmentedButton(
-                                selected = s.theme == mode,
-                                onClick = { vm.setTheme(mode) },
-                                shape = SegmentedButtonDefaults.itemShape(i, modes.size),
-                            ) { Text(stringResource(label)) }
-                        }
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        SwitchRow(Icons.Rounded.Palette, stringResource(R.string.settings_dynamic_color), stringResource(R.string.settings_dynamic_color_hint), s.dynamicColor, vm::setDynamicColor)
-                    }
-                    Row(
-                        Icons.Rounded.Language,
-                        stringResource(R.string.mealie_language),
-                        currentLanguageName(),
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                // רשימת השפות של המערכת לאפליקציה (נוצרת מ-generateLocaleConfig).
-                                context.startActivity(
-                                    Intent(Settings.ACTION_APP_LOCALE_SETTINGS, "package:${context.packageName}".toUri()),
-                                )
-                            } else {
-                                languages = true
-                            }
-                        },
-                    )
-                }
-            }
-
-            item {
-                Section(stringResource(R.string.settings_web)) {
-                    SwitchRow(Icons.Rounded.Web, stringResource(R.string.settings_raw), stringResource(R.string.settings_raw_hint), s.rawWebView, vm::setRawWebView)
-                    SwitchRow(Icons.Rounded.PhotoCamera, stringResource(R.string.settings_compress), stringResource(R.string.settings_compress_hint), s.compressCameraImages, vm::setCompressImages)
-                    SwitchRow(Icons.Rounded.Timer, stringResource(R.string.settings_timers), stringResource(R.string.settings_timers_hint), s.stepTimers, vm::setStepTimers)
-                }
-                Section(stringResource(R.string.settings_import)) {
-                    SwitchRow(Icons.Rounded.Sell, stringResource(R.string.settings_import_tags), stringResource(R.string.settings_import_tags_hint), s.importTags, vm::setImportTags)
-                    SwitchRow(Icons.Rounded.Category, stringResource(R.string.settings_import_categories), stringResource(R.string.settings_import_categories_hint), s.importCategories, vm::setImportCategories)
-                    val running = scaleFix as? ScaleFixState.Running
-                    Row(
-                        Icons.Rounded.Scale,
-                        stringResource(R.string.scale_fix_title),
-                        scaleFixStatus(scaleFix),
-                        onClick = if (running == null && connection is Connection.Ready) ({ confirmScale = true }) else null,
-                    )
-                    if (running != null) {
-                        val modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
-                        if (running.total > 0) {
-                            LinearProgressIndicator(progress = { running.done.toFloat() / running.total }, modifier = modifier)
-                        } else {
-                            LinearProgressIndicator(modifier = modifier)
-                        }
                     }
                 }
             }
 
             item {
-                Section(stringResource(R.string.settings_updates)) {
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-                        val modes = listOf(
-                            UpdateMode.AUTO to R.string.update_mode_auto,
-                            UpdateMode.NOTIFY to R.string.update_mode_notify,
-                            UpdateMode.OFF to R.string.update_mode_off,
+                ListGroup(stringResource(R.string.settings_updates)) {
+                    row { shapes ->
+                        SegmentedListItem(
+                            shapes = shapes,
+                            colors = groupItemColors(),
+                            leadingContent = { Icon(Icons.Rounded.Update, null) },
+                        ) {
+                            ConnectedChoice(
+                                options = listOf(
+                                    UpdateMode.AUTO to R.string.update_mode_auto,
+                                    UpdateMode.NOTIFY to R.string.update_mode_notify,
+                                    UpdateMode.OFF to R.string.update_mode_off,
+                                ),
+                                selected = s.updateMode,
+                                onSelect = vm::setUpdateMode,
+                            )
+                        }
+                    }
+                    row { shapes ->
+                        val current = update
+                        val checking = current == UpdateState.Checking
+                        val status = when (current) {
+                            UpdateState.Checking -> stringResource(R.string.update_checking)
+                            UpdateState.UpToDate -> stringResource(R.string.update_up_to_date)
+                            is UpdateState.Available -> stringResource(R.string.update_available_body, current.info.versionName)
+                            else -> stringResource(R.string.update_check_hint)
+                        }
+                        SettingRow(
+                            shapes = shapes,
+                            icon = Icons.Rounded.SystemUpdate,
+                            title = stringResource(R.string.update_check_now),
+                            subtitle = status,
+                            // בזמן בדיקה השורה לא לחיצה, כדי שלא ייפתחו כמה בדיקות במקביל.
+                            onClick = if (checking) null else ({ vm.checkForUpdate(manual = true) }),
+                            trailing = if (checking) ({ LoadingIndicator(Modifier.size(32.dp)) }) else null,
                         )
-                        modes.forEachIndexed { i, (mode, label) ->
-                            SegmentedButton(
-                                selected = s.updateMode == mode,
-                                onClick = { vm.setUpdateMode(mode) },
-                                shape = SegmentedButtonDefaults.itemShape(i, modes.size),
-                            ) { Text(stringResource(label)) }
-                        }
                     }
-                    val status = when (update) {
-                        UpdateState.Checking -> stringResource(R.string.update_checking)
-                        UpdateState.UpToDate -> stringResource(R.string.update_up_to_date)
-                        is UpdateState.Available -> stringResource(R.string.update_available_body, (update as UpdateState.Available).info.versionName)
-                        else -> stringResource(R.string.update_check_hint)
-                    }
-                    Row(Icons.Rounded.SystemUpdate, stringResource(R.string.update_check_now), status, onClick = { vm.checkForUpdate(manual = true) })
                 }
             }
 
             item {
-                Section(stringResource(R.string.settings_about)) {
+                ListGroup(stringResource(R.string.settings_about)) {
                     val server = (connection as? Connection.Ready)?.about?.version
-                    Row(Icons.Rounded.Info, stringResource(R.string.about_app_version), BuildConfig.VERSION_NAME)
-                    if (server != null) Row(Icons.Rounded.Dns, stringResource(R.string.about_server_version), server)
-                    Row(
-                        Icons.AutoMirrored.Rounded.OpenInNew,
-                        stringResource(R.string.about_source),
-                        "github.com/${BuildConfig.UPDATE_REPO}",
-                        onClick = { activity.openExternal("https://github.com/${BuildConfig.UPDATE_REPO}".toUri()) },
-                    )
+                    row { SettingRow(it, Icons.Rounded.Info, stringResource(R.string.about_app_version), BuildConfig.VERSION_NAME) }
+                    if (server != null) row { SettingRow(it, Icons.Rounded.Dns, stringResource(R.string.about_server_version), server) }
+                    row { shapes ->
+                        SettingRow(
+                            shapes,
+                            Icons.AutoMirrored.Rounded.OpenInNew,
+                            stringResource(R.string.about_source),
+                            "github.com/${BuildConfig.UPDATE_REPO}",
+                            onClick = { activity.openExternal("https://github.com/${BuildConfig.UPDATE_REPO}".toUri()) },
+                        )
+                    }
                 }
             }
         }
@@ -337,50 +391,101 @@ private fun LanguageDialog(onDismiss: () -> Unit) {
 
 private fun Modifier.clickableRow(onClick: () -> Unit) = this.clickable(onClick = onClick)
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
-        )
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
-            Column(Modifier.padding(vertical = 8.dp)) { content() }
-        }
-    }
-}
-
-@Composable
-private fun Row(
+private fun SettingRow(
+    shapes: ListItemShapes,
     icon: ImageVector,
     title: String,
     subtitle: String?,
     onClick: (() -> Unit)? = null,
+    highlighted: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
+    below: (@Composable () -> Unit)? = null,
 ) {
-    val item = @Composable {
-        ListItem(
-            headlineContent = { Text(title) },
-            supportingContent = subtitle?.let { { Text(it) } },
-            leadingContent = { Icon(icon, null) },
-            trailingContent = trailing,
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        )
+    val leading = @Composable {
+        Icon(icon, null, tint = if (highlighted) MaterialTheme.colorScheme.primary else LocalContentColor.current)
     }
-    if (onClick != null) Surface(onClick = onClick, color = MaterialTheme.colorScheme.surfaceContainer) { item() } else item()
+    val supporting: (@Composable () -> Unit)? = if (subtitle == null && below == null) {
+        null
+    } else {
+        {
+            Column {
+                subtitle?.let { Text(it) }
+                below?.invoke()
+            }
+        }
+    }
+    if (onClick != null) {
+        SegmentedListItem(
+            onClick = onClick,
+            shapes = shapes,
+            colors = groupItemColors(),
+            leadingContent = leading,
+            trailingContent = trailing,
+            supportingContent = supporting,
+        ) { Text(title) }
+    } else {
+        SegmentedListItem(
+            shapes = shapes,
+            colors = groupItemColors(),
+            leadingContent = leading,
+            trailingContent = trailing,
+            supportingContent = supporting,
+        ) { Text(title) }
+    }
 }
 
+/** כל השורה מחליפה את המתג (toggleable), כך שקורא מסך מכריז על פריט אחד עם מצב. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SwitchRow(icon: ImageVector, title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Surface(onClick = { onChange(!checked) }, color = MaterialTheme.colorScheme.surfaceContainer) {
-        ListItem(
-            headlineContent = { Text(title) },
-            supportingContent = { Text(subtitle) },
-            leadingContent = { Icon(icon, null) },
-            trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        )
+private fun SwitchRow(shapes: ListItemShapes, icon: ImageVector, title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    SegmentedListItem(
+        checked = checked,
+        onCheckedChange = onChange,
+        shapes = shapes,
+        colors = groupItemColors(),
+        leadingContent = { Icon(icon, null) },
+        supportingContent = { Text(subtitle) },
+        trailingContent = {
+            Switch(
+                checked = checked,
+                onCheckedChange = null,
+                thumbContent = if (checked) ({ Icon(Icons.Rounded.Check, null, Modifier.size(SwitchDefaults.IconSize)) }) else null,
+            )
+        },
+    ) { Text(title) }
+}
+
+/** בחירה אחת מכמה: כפתורים מחוברים של Material 3 Expressive, במקום Segmented Button. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun <T> ConnectedChoice(options: List<Pair<T, Int>>, selected: T, onSelect: (T) -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+    ) {
+        options.forEachIndexed { i, (value, label) ->
+            val checked = value == selected
+            ToggleButton(
+                checked = checked,
+                // לחיצה על האפשרות הפעילה לא מבטלת אותה.
+                onCheckedChange = { if (it) onSelect(value) },
+                modifier = Modifier.weight(1f),
+                shapes = when (i) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                // הכפתורים יושבים על מיכל surfaceContainer, אז הלא-נבחרים צריכים גוון בולט יותר.
+                colors = ToggleButtonDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+            ) {
+                if (checked) {
+                    Icon(Icons.Rounded.Check, null, Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                }
+                Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
     }
 }

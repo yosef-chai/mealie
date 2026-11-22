@@ -1,13 +1,9 @@
 package io.github.yosefchai.mealie.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Login
@@ -19,13 +15,13 @@ import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItemShapes
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -37,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.yosefchai.mealie.MainActivity
 import io.github.yosefchai.mealie.R
@@ -48,7 +45,7 @@ import io.github.yosefchai.mealie.ui.UpdateState
 /**
  * "עוד": התפריט המלא של Mealie (המגירה שלו), ופעולות האפליקציה: התחברות, החלפת שרת, הגדרות.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MoreSheet(vm: AppViewModel, activity: MainActivity, onDismiss: () -> Unit) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -59,67 +56,90 @@ fun MoreSheet(vm: AppViewModel, activity: MainActivity, onDismiss: () -> Unit) {
     val about = (connection as? Connection.Ready)?.about
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {
-        Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(bottom = 16.dp)) {
+        Column(
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
             (update as? UpdateState.Available)?.let { u ->
-                Surface(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    onClick = { vm.installUpdate(u.info); onDismiss() },
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.update_available_title)) },
-                        supportingContent = { Text(stringResource(R.string.update_available_body, u.info.versionName)) },
-                        leadingContent = { Icon(Icons.Rounded.SystemUpdate, null) },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                    )
+                ListGroup(title = null) {
+                    row { shapes ->
+                        SegmentedListItem(
+                            onClick = { vm.installUpdate(u.info); onDismiss() },
+                            shapes = shapes,
+                            leadingContent = { Icon(Icons.Rounded.SystemUpdate, null) },
+                            supportingContent = { Text(stringResource(R.string.update_available_body, u.info.versionName)) },
+                            colors = ListItemDefaults.segmentedColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                leadingContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                supportingContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            ),
+                        ) { Text(stringResource(R.string.update_available_title)) }
+                    }
                 }
             }
 
-            SheetItem(Icons.AutoMirrored.Rounded.MenuOpen, stringResource(R.string.more_mealie_menu), stringResource(R.string.more_mealie_menu_hint)) {
-                onDismiss()
-                activity.web.openDrawer()
-            }
-            if (about?.enableOidc == true) {
-                val provider = about.oidcProviderName.ifBlank { "OIDC" }
-                SheetItem(Icons.AutoMirrored.Rounded.Login, stringResource(R.string.more_oidc, provider), stringResource(R.string.more_oidc_hint)) {
-                    onDismiss()
-                    activity.startOidc()
+            ListGroup(title = null) {
+                row {
+                    SheetItem(it, Icons.AutoMirrored.Rounded.MenuOpen, stringResource(R.string.more_mealie_menu), stringResource(R.string.more_mealie_menu_hint)) {
+                        onDismiss()
+                        activity.web.openDrawer()
+                    }
+                }
+                if (about?.enableOidc == true) {
+                    row {
+                        val provider = about.oidcProviderName.ifBlank { "OIDC" }
+                        SheetItem(it, Icons.AutoMirrored.Rounded.Login, stringResource(R.string.more_oidc, provider), stringResource(R.string.more_oidc_hint)) {
+                            onDismiss()
+                            activity.startOidc()
+                        }
+                    }
+                }
+                row {
+                    SheetItem(it, Icons.Rounded.Key, stringResource(R.string.more_token), stringResource(R.string.more_token_hint)) {
+                        tokenDialog = true
+                    }
                 }
             }
-            SheetItem(Icons.Rounded.Key, stringResource(R.string.more_token), stringResource(R.string.more_token_hint)) {
-                tokenDialog = true
-            }
 
-            HorizontalDivider(Modifier.padding(vertical = 8.dp, horizontal = 16.dp))
-            Text(
-                stringResource(R.string.settings_servers),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-            )
             val s = settings
-            s?.servers?.forEach { server ->
-                val active = server.id == s.activeServer?.id
-                SheetItem(
-                    icon = if (active) Icons.Rounded.CheckCircle else Icons.Rounded.Dns,
-                    title = server.displayName,
-                    subtitle = listOfNotNull(server.externalUrl, server.internalUrl).joinToString(" · "),
-                ) {
-                    onDismiss()
-                    if (!active) vm.switchServer(server.id)
+            ListGroup(title = stringResource(R.string.settings_servers)) {
+                s?.servers?.forEach { server ->
+                    val active = server.id == s.activeServer?.id
+                    row { shapes ->
+                        SegmentedListItem(
+                            selected = active,
+                            onClick = {
+                                onDismiss()
+                                if (!active) vm.switchServer(server.id)
+                            },
+                            shapes = shapes,
+                            leadingContent = { Icon(if (active) Icons.Rounded.CheckCircle else Icons.Rounded.Dns, null) },
+                            supportingContent = {
+                                Text(listOfNotNull(server.externalUrl, server.internalUrl).joinToString(" · "), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            },
+                        ) { Text(server.displayName) }
+                    }
+                }
+                row {
+                    SheetItem(it, Icons.Rounded.Add, stringResource(R.string.server_add), null) {
+                        onDismiss()
+                        vm.openScreen(Screen.ADD_SERVER)
+                    }
                 }
             }
-            SheetItem(Icons.Rounded.Add, stringResource(R.string.server_add), null) {
-                onDismiss()
-                vm.openScreen(Screen.ADD_SERVER)
+
+            ListGroup(title = null) {
+                row {
+                    SheetItem(it, Icons.Rounded.Settings, stringResource(R.string.app_settings), null) {
+                        onDismiss()
+                        vm.openScreen(Screen.SETTINGS)
+                    }
+                }
             }
-            HorizontalDivider(Modifier.padding(vertical = 8.dp, horizontal = 16.dp))
-            SheetItem(Icons.Rounded.Settings, stringResource(R.string.app_settings), null) {
-                onDismiss()
-                vm.openScreen(Screen.SETTINGS)
-            }
-            Spacer(Modifier.height(8.dp))
         }
     }
 
@@ -136,14 +156,13 @@ fun MoreSheet(vm: AppViewModel, activity: MainActivity, onDismiss: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SheetItem(icon: ImageVector, title: String, subtitle: String?, onClick: () -> Unit) {
-    Surface(onClick = onClick, color = MaterialTheme.colorScheme.surfaceContainerLow) {
-        ListItem(
-            headlineContent = { Text(title) },
-            supportingContent = subtitle?.let { { Text(it, maxLines = 2) } },
-            leadingContent = { Icon(icon, null) },
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        )
-    }
+private fun SheetItem(shapes: ListItemShapes, icon: ImageVector, title: String, subtitle: String?, onClick: () -> Unit) {
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = shapes,
+        leadingContent = { Icon(icon, null) },
+        supportingContent = subtitle?.let { { Text(it, maxLines = 2, overflow = TextOverflow.Ellipsis) } },
+    ) { Text(title) }
 }

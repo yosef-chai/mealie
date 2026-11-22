@@ -105,7 +105,7 @@ fun ImportSheet(
 @Composable
 private fun SourceRow(url: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
             Icon(
                 Icons.Rounded.Restaurant,
                 contentDescription = null,
@@ -165,7 +165,7 @@ private fun DoneContent(recipe: ImportedRecipe, onOpen: (String) -> Unit, onDism
         val bitmap by produceState<android.graphics.Bitmap?>(null, recipe.imageUrl) {
             value = recipe.imageUrl?.let { Images.load(it, null, 900) }
         }
-        Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Surface(shape = MaterialTheme.shapes.largeIncreased, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
             Column {
                 Box(
                     Modifier
@@ -243,7 +243,7 @@ private fun FailedContent(state: ImportState.Failed, onRetry: () -> Unit, onOpen
 private fun Notice(icon: androidx.compose.ui.graphics.vector.ImageVector, body: String, title: String? = null, error: Boolean = false) {
     val container = if (error) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer
     val content = if (error) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
-    Surface(shape = RoundedCornerShape(16.dp), color = container, modifier = Modifier.fillMaxWidth()) {
+    Surface(shape = MaterialTheme.shapes.large, color = container, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
             Icon(icon, null, tint = content, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(12.dp))
