@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -35,7 +34,9 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.toShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -144,12 +145,13 @@ fun OnboardingScreen(vm: AppViewModel, activity: MainActivity, firstRun: Boolean
                 Spacer(Modifier.height(48.dp))
             }
 
-            Surface(shape = RoundedCornerShape(32.dp), color = MealieOrange, shadowElevation = 6.dp) {
+            // צורת "עוגייה" של Material 3 Expressive סביב הלוגו
+            Surface(shape = MaterialShapes.Cookie9Sided.toShape(), color = MealieOrange, shadowElevation = 6.dp) {
                 Image(
                     painterResource(R.drawable.ic_mealie_logo),
                     contentDescription = null,
                     colorFilter = ColorFilter.tint(androidx.compose.ui.graphics.Color.White),
-                    modifier = Modifier.padding(22.dp).size(64.dp),
+                    modifier = Modifier.padding(28.dp).size(60.dp),
                 )
             }
             Spacer(Modifier.height(24.dp))
@@ -169,7 +171,7 @@ fun OnboardingScreen(vm: AppViewModel, activity: MainActivity, firstRun: Boolean
 
             Surface(
                 modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
+                shape = MaterialTheme.shapes.extraLarge,
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 tonalElevation = 2.dp,
             ) {
@@ -202,7 +204,7 @@ fun OnboardingScreen(vm: AppViewModel, activity: MainActivity, firstRun: Boolean
                     )
 
                     if (activity.needsLocalNetworkPermission(listOf(internalUrl, externalUrl))) {
-                        Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
+                        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.tertiaryContainer) {
                             Column(Modifier.padding(16.dp)) {
                                 Text(stringResource(R.string.local_network_explain), style = MaterialTheme.typography.bodyMedium)
                                 TextButton(onClick = activity::requestLocalNetworkIfNeeded) {
@@ -219,6 +221,7 @@ fun OnboardingScreen(vm: AppViewModel, activity: MainActivity, firstRun: Boolean
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         FilledTonalButton(
                             onClick = { vm.testServer(internal, external) },
+                            shapes = ButtonDefaults.shapes(),
                             enabled = canTest && !publicCleartext,
                             modifier = Modifier.weight(1f).height(56.dp),
                         ) {
@@ -226,6 +229,7 @@ fun OnboardingScreen(vm: AppViewModel, activity: MainActivity, firstRun: Boolean
                         }
                         Button(
                             onClick = { vm.saveServer(name, internal, external) },
+                            shapes = ButtonDefaults.shapes(),
                             enabled = anyOk,
                             modifier = Modifier.weight(1f).height(56.dp),
                             contentPadding = ButtonDefaults.ContentPadding,

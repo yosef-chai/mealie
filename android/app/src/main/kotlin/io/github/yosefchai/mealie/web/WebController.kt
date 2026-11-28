@@ -20,6 +20,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
+import android.widget.FrameLayout
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.ScriptHandler
@@ -55,6 +56,8 @@ data class WebUiState(
     val loading: Boolean = true,
     val routerReady: Boolean = false,
     val firstPaint: Boolean = false,
+    /** הדף הנוכחי לא בשרת (שער אימות / ספק זהות): אין בו את הגשר, ולא יגיע ממנו דיווח theme. */
+    val foreignPage: Boolean = false,
     val canGoBack: Boolean = false,
     val dark: Boolean? = null,
     val barColor: Int? = null,
@@ -96,13 +99,27 @@ class WebController(
     private val _state = MutableStateFlow(WebUiState())
     val state: StateFlow<WebUiState> = _state.asStateFlow()
 
-    /** מקבל את ה-WebView; מוחלף כשמנוע הרינדור קורס. */
+    /**
+     * מחזיק את ה-WebView. SwipeRefreshLayout שומר את הילד הראשון שלו (mTarget) ולא מאפס אותו ב-removeView,
+     * ולכן WebView שהוחלף (תצוגה מקורית, החלפת שרת, קריסת רינדור) היה נשאר בגודל 0 ומסך לבן.
+     * הילד הקבוע הוא FrameLayout, וה-WebView מתחלף בתוכו.
+     */
+    private val webHost = FrameLayout(context)
+
     val container: SwipeRefreshLayout = SwipeRefreshLayout(context).apply {
-        setOnRefreshListener { webView?.reload() }
+        addView(webHost, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        // היעד הוא ה-FrameLayout, אז הגלילה נבדקת מול ה-WebView עצמו.
+        // WebView רואה רק את גלילת המסמך; גלילה בתוך דיאלוג או רשימה פנימית מדווחת מהדף (pullBlocked).
+        setOnChildScrollUpCallback { _, _ -> pullBlocked || webView?.canScrollVertically(-1) == true }
+        setOnRefreshListener { webView?.reload() ?: run { isRefreshing = false } }
     }
 
     var webView: WebView? = null
         private set
+
+    /** הדף דיווח שמשיכה עכשיו תהיה גלילה ולא רענון: דיאלוג פתוח, או תוכן פנימי שאינו בראש. */
+    @Volatile
+    private var pullBlocked = false
 
     private var server: ServerUrl? = null
     private var allServers: List<ServerUrl> = emptyList()
@@ -124,6 +141,10 @@ class WebController(
 
     val arrayBufferSupported: Boolean
         get() = WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_ARRAY_BUFFER)
+
+    /** הגשר ל-JS (MealieNative) זמין; בלעדיו לא מגיעים דיווחי route / theme מהדף. */
+    val bridgeSupported: Boolean
+        get() = WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
 
     /** מחבר לשרת: יוצר WebView חדש עם כללי origin של כל הכתובות שלו. */
     fun attach(active: ServerUrl, all: List<ServerUrl>, inject: InjectOptions, authGate: Boolean, restore: Bundle? = null) {
@@ -149,14 +170,15 @@ class WebController(
         scriptHandler = null
         reply = null
         webView?.let {
-            container.removeView(it)
+            webHost.removeView(it)
             it.stopLoading()
             it.destroy()
         }
+        container.isRefreshing = false
         val wv = WebView(context)
         configure(wv)
         webView = wv
-        container.addView(wv, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        webHost.addView(wv, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         _state.value = WebUiState()
     }
 
@@ -298,7 +320,7 @@ class WebController(
     fun destroy() {
         scriptHandler?.remove()
         webView?.let {
-            container.removeView(it)
+            webHost.removeView(it)
             it.destroy()
         }
         webView = null
@@ -337,6 +359,7 @@ class WebController(
                 it.copy(dark = bool("dark"), barColor = parseCss(str("bar")), backgroundColor = parseCss(str("background")))
             }
             "wakeLock" -> _state.update { it.copy(wakeLock = bool("on") == true) }
+            "pull" -> pullBlocked = bool("allowed") == false
             "timer" -> {
                 val min = int("min") ?: return
                 val max = int("max") ?: min
@@ -412,7 +435,10 @@ class WebController(
         }
 
         override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
-            _state.update { it.copy(loading = true, error = null, routerReady = false) }
+            val foreign = allServers.none { it.sameOrigin(url) }
+            // דף חדש: מצב הגלילה של הדף הקודם לא רלוונטי
+            pullBlocked = false
+            _state.update { it.copy(loading = true, error = null, routerReady = false, foreignPage = foreign) }
             if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) && allServers.any { it.sameOrigin(url) }) {
                 view.evaluateJavascript(buildScript(), null)
             }

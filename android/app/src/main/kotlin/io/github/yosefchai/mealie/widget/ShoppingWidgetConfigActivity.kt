@@ -10,12 +10,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ShoppingCart
@@ -23,7 +24,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -42,7 +44,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -128,14 +129,20 @@ class ShoppingWidgetConfigActivity : AppCompatActivity() {
                             startActivity(Intent(this@ShoppingWidgetConfigActivity, MainActivity::class.java))
                         }) { Text(stringResource(R.string.widget_open_app)) }
                     }
-                    else -> LazyColumn(Modifier.fillMaxWidth()) {
-                        items(current, key = { it.first }) { (id, name) ->
-                            ListItem(
-                                headlineContent = { Text(name.ifBlank { stringResource(R.string.mealie_shopping_lists) }) },
+                    else -> LazyColumn(
+                        Modifier.fillMaxWidth().selectableGroup(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                    ) {
+                        itemsIndexed(current, key = { _, item -> item.first }) { i, (id, name) ->
+                            SegmentedListItem(
+                                selected = selected == id,
+                                onClick = { selected = id },
+                                shapes = ListItemDefaults.segmentedShapes(index = i, count = current.size),
+                                colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                                 leadingContent = { Icon(Icons.Rounded.ShoppingCart, null) },
                                 trailingContent = { RadioButton(selected = selected == id, onClick = null) },
-                                modifier = Modifier.selectable(selected == id, role = Role.RadioButton) { selected = id },
-                            )
+                            ) { Text(name.ifBlank { stringResource(R.string.mealie_shopping_lists) }) }
                         }
                     }
                 }

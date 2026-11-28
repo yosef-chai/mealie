@@ -79,6 +79,7 @@ class AndroidLogicTest {
     }
 
     /** CookieManager מינימלי: שומר name=value לכל origin, ו-Max-Age=0 מוחק. */
+    @Suppress("DEPRECATION") // הבנאי הציבורי הוא הדרך היחידה לרשת מ-CookieManager
     private class FakeCookies : CookieManager() {
         val raw = mutableMapOf<String, MutableList<String>>()
         private val jar = mutableMapOf<String, MutableMap<String, String>>()

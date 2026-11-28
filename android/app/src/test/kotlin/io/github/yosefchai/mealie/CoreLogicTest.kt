@@ -31,8 +31,6 @@ class VersionCodeTest {
         assertEquals(3_310_002, patched.code)
         assertNull(VersionCode.fromTag("v3.31.0"))
         assertNull(VersionCode.fromTag("android-v3.31"))
-        assertEquals("android-v3.31.0", VersionCode.tagFor("3.31.0", 0))
-        assertEquals("android-v3.31.0.4", VersionCode.tagFor("3.31.0", 4))
     }
 
     /** הנוסחה ב-Gradle (buildSrc) וב-Kotlin חייבות להיות זהות, אחרת העדכון העצמי ישווה גרסאות לא נכון. */

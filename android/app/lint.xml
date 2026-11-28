@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- אזהרות על החלטות מכוונות, כדי שאזהרה חדשה באמת תבלוט בדוח. -->
+<lint>
+    <!-- שרתים ביתיים: http רק לכתובות פרטיות (נאכף ב-HostPolicy), ו-CA פרטי שהמשתמש התקין. ראו network_security_config.xml. -->
+    <issue id="InsecureBaseConfiguration" severity="ignore" />
+    <issue id="AcceptsUserCertificates" severity="ignore" />
+    <!-- ההפצה היא APK מ-GitHub Releases ולא App Bundle, ולכן כל השפות נמצאות בקובץ. -->
+    <issue id="AppBundleLocaleChanges" severity="ignore" />
+    <!-- מאפייני ווידג'ט של Android 12 ומעלה; גרסאות קודמות מתעלמות מהם. -->
+    <issue id="UnusedAttribute">
+        <ignore path="src/main/res/xml/widget_meals_info.xml" />
+        <ignore path="src/main/res/xml/widget_shopping_info.xml" />
+    </issue>
+</lint>

@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -32,11 +34,13 @@ import androidx.compose.material.icons.rounded.ShoppingCart
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.WideNavigationRail
+import androidx.compose.material3.WideNavigationRailDefaults
+import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -56,7 +60,10 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import io.github.yosefchai.mealie.MainActivity
@@ -71,6 +78,7 @@ import io.github.yosefchai.mealie.ui.components.MoreSheet
 import io.github.yosefchai.mealie.ui.components.UpdatePrompt
 import io.github.yosefchai.mealie.web.Tab
 import io.github.yosefchai.mealie.web.WebController
+import kotlinx.coroutines.delay
 
 private data class TabItem(val tab: Tab, val icon: ImageVector, val label: Int)
 
@@ -84,7 +92,7 @@ private val tabItems = listOf(
 
 /**
  * המסך הראשי: ממשק Mealie ב-WebView, עם סרגל ניווט נייטיב.
- * טלפון: סרגל תחתון. טאבלט / מתקפל פתוח (600dp ומעלה): Navigation Rail בצד.
+ * טלפון: Short Navigation Bar בתחתית. טאבלט / מתקפל פתוח (600dp ומעלה): Wide Navigation Rail בצד.
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -149,17 +157,19 @@ fun MainShell(vm: AppViewModel, activity: MainActivity) {
         val wide = maxWidth >= 600.dp
         Row(Modifier.fillMaxSize()) {
             if (wide && barVisible) {
-                NavigationRail(containerColor = webBackground) {
-                    Spacer(Modifier.weight(1f))
+                WideNavigationRail(
+                    colors = WideNavigationRailDefaults.colors(containerColor = webBackground),
+                    arrangement = Arrangement.Center,
+                ) {
                     tabItems.forEach { item ->
-                        NavigationRailItem(
+                        WideNavigationRailItem(
                             selected = item.tab == currentTab,
                             onClick = { select(item.tab) },
                             icon = { Icon(item.icon, contentDescription = null) },
-                            label = { Text(stringResource(item.label), maxLines = 1) },
+                            label = { NavLabel(stringResource(item.label)) },
+                            railExpanded = false,
                         )
                     }
-                    Spacer(Modifier.weight(1f))
                 }
             }
             Column(Modifier.weight(1f).fillMaxSize()) {
@@ -177,6 +187,26 @@ fun MainShell(vm: AppViewModel, activity: MainActivity) {
                             onGrantLocal = activity::requestLocalNetworkIfNeeded,
                         )
                         else -> LoadingState()
+                    }
+                    // WebView חדש (חיבור ראשון, תצוגה מקורית, החלפת שרת) לבן עד ש-Mealie מצייר; מציגים טעינה במקום.
+                    // הסימן: דיווח ה-theme מהדף (יש .v-application). דף שלא ידווח (שער אימות, WebView בלי הגשר,
+                    // דף שגיאה של השרת) משתחרר אחרי זמן חסד מסוף הטעינה: קצר בדף זר, ארוך יותר ב-Mealie עצמו.
+                    var settled by remember { mutableStateOf(false) }
+                    LaunchedEffect(st.firstPaint, st.loading, st.foreignPage) {
+                        settled = false
+                        if (st.firstPaint && !st.loading) {
+                            delay(if (st.foreignPage || !web.bridgeSupported) 1_000 else 8_000)
+                            settled = true
+                        }
+                    }
+                    val contentShown = st.dark != null || settled
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = (connection is Connection.Ready || connection is Connection.Offline) &&
+                            !contentShown && st.error == null && st.untrusted == null,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        Box(Modifier.fillMaxSize().background(webBackground)) { LoadingState() }
                     }
                     if (st.loading && (connection is Connection.Ready)) {
                         LinearWavyProgressIndicator(
@@ -204,13 +234,13 @@ fun MainShell(vm: AppViewModel, activity: MainActivity) {
                     enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
                     exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
                 ) {
-                    NavigationBar(containerColor = webBackground) {
+                    ShortNavigationBar(containerColor = webBackground) {
                         tabItems.forEach { item ->
-                            NavigationBarItem(
+                            ShortNavigationBarItem(
                                 selected = item.tab == currentTab,
                                 onClick = { select(item.tab) },
                                 icon = { Icon(item.icon, contentDescription = null) },
-                                label = { Text(stringResource(item.label), maxLines = 1) },
+                                label = { NavLabel(stringResource(item.label)) },
                             )
                         }
                     }
@@ -237,6 +267,25 @@ fun MainShell(vm: AppViewModel, activity: MainActivity) {
         MoreSheet(vm = vm, activity = activity, onDismiss = { moreOpen = false })
     }
     UpdatePrompt(vm = vm, activity = activity)
+}
+
+/**
+ * תווית לשונית: שורה אחת ממורכזת. תווית ארוכה ("רשימות קניות") קטנה עד שהיא נכנסת,
+ * במקום לגלוש לשורה שנייה שנחתכת ומשאירה מילה אחת צמודה לצד.
+ */
+@Composable
+private fun NavLabel(text: String) {
+    val style = LocalTextStyle.current
+    Text(
+        text = text,
+        // רווח בין תוויות שכנות; בלעדיו "תכנון ארוחות רשימות קניות" נקרא כשורה אחת במסך צר
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = style.fontSize, stepSize = 0.5.sp),
+    )
 }
 
 @Composable
